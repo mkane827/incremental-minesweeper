@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  min-block-size: 100%;
+}
+
+.app-bar {
+  gap: 12px;
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+}
+
+.app-bar-icon {
+  color: var(--mat-sys-primary);
+}
+
+.app-bar-title {
+  font: var(--mat-sys-title-medium);
+}
+
+.app-bar-spacer {
+  flex: 1 1 auto;
+}
+
+.currency {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-highest);
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px 48px;
+}
+
+.game-card {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0 4px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-body-medium);
+
+  &.is-lost {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
+.hint {
+  margin: 0;
+  max-inline-size: 44ch;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}

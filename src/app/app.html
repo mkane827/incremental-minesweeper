@@ -1,0 +1,49 @@
+<mat-toolbar class="app-bar">
+  <mat-icon class="app-bar-icon" aria-hidden="true">grid_on</mat-icon>
+  <span class="app-bar-title">Incremental Minesweeper</span>
+  <span class="app-bar-spacer"></span>
+  <div class="currency" aria-label="Mines banked">
+    <mat-icon aria-hidden="true">diamond</mat-icon>
+    <span>{{ currency.mines() }}</span>
+  </div>
+  <button
+    matIconButton
+    type="button"
+    matTooltip="Upgrades"
+    aria-label="Open the upgrades menu"
+    (click)="openUpgrades()"
+  >
+    <mat-icon>upgrade</mat-icon>
+  </button>
+  <button
+    matIconButton
+    type="button"
+    matTooltip="Keyboard shortcuts"
+    aria-label="Open keyboard shortcut settings"
+    (click)="openSettings()"
+  >
+    <mat-icon>settings</mat-icon>
+  </button>
+</mat-toolbar>
+
+<main class="page">
+  <mat-card class="game-card" appearance="outlined">
+    <mat-card-content>
+      <ms-game-header />
+      <ms-board />
+
+      @if (banner(); as info) {
+        <p class="banner" [class.is-lost]="status() === 'lost'" role="status">
+          <mat-icon aria-hidden="true">{{ info.icon }}</mat-icon>
+          <span>{{ info.text }}</span>
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <p class="hint">
+    Left click to reveal &middot; right click to flag &middot; click a number with all its
+    mines flagged to clear around it.
+  </p>
+  <p class="hint">{{ keyHint() }}</p>
+</main>

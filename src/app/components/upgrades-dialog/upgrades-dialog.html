@@ -1,0 +1,47 @@
+<h2 matDialogTitle>Upgrades</h2>
+
+<mat-dialog-content class="content">
+  <p class="balance">
+    <mat-icon aria-hidden="true">diamond</mat-icon>
+    <span>{{ currency.mines() }} banked</span>
+  </p>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Max mines</span>
+      <span class="upgrade-detail">Currently {{ upgrades.maxMines() }} &middot; next board will have one more</span>
+    </div>
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="!upgrades.canAffordMineCapacity()"
+      (click)="buyMineCapacity()"
+    >
+      <mat-icon aria-hidden="true">diamond</mat-icon>
+      {{ upgrades.mineCapacityCost() }}
+    </button>
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Board size</span>
+      <span class="upgrade-detail">
+        Currently {{ upgrades.boardRows() }}&times;{{ upgrades.boardCols() }} &middot; next board
+        will be {{ upgrades.boardRows() + 1 }}&times;{{ upgrades.boardCols() + 1 }}
+      </span>
+    </div>
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="!upgrades.canAffordBoardSize()"
+      (click)="buyBoardSize()"
+    >
+      <mat-icon aria-hidden="true">diamond</mat-icon>
+      {{ upgrades.boardSizeCost() }}
+    </button>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button matButton (click)="close()">Close</button>
+</mat-dialog-actions>

@@ -1,0 +1,136 @@
+:host {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: var(--ms-cell-size);
+  block-size: var(--ms-cell-size);
+  border-radius: 4px;
+  user-select: none;
+  cursor: pointer;
+  outline: none;
+  background: var(--mat-sys-surface-container-highest);
+  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--mat-sys-surface) 60%, transparent);
+  transition:
+    background-color 120ms ease,
+    transform 80ms ease;
+}
+
+:host(:hover:not(.is-revealed)) {
+  background: var(--mat-sys-secondary-container);
+}
+
+:host(:active:not(.is-revealed)) {
+  transform: scale(0.94);
+}
+
+:host(:focus-visible) {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+:host(.is-revealed) {
+  cursor: default;
+  background: var(--mat-sys-surface-container);
+  border-color: color-mix(in srgb, var(--mat-sys-outline-variant) 40%, transparent);
+  box-shadow: none;
+}
+
+:host(.is-exploded) {
+  background: var(--mat-sys-error);
+  border-color: var(--mat-sys-error);
+  color: var(--mat-sys-on-error);
+}
+
+.glyph {
+  pointer-events: none;
+}
+
+.count {
+  font-weight: 700;
+  font-size: calc(var(--ms-cell-size) * 0.58);
+  line-height: 1;
+}
+
+.flag {
+  color: var(--mat-sys-error);
+  font-size: calc(var(--ms-cell-size) * 0.68);
+  inline-size: calc(var(--ms-cell-size) * 0.68);
+  block-size: calc(var(--ms-cell-size) * 0.68);
+}
+
+.strike {
+  position: absolute;
+  color: var(--mat-sys-on-surface);
+  opacity: 0.85;
+  font-size: calc(var(--ms-cell-size) * 0.9);
+  inline-size: calc(var(--ms-cell-size) * 0.9);
+  block-size: calc(var(--ms-cell-size) * 0.9);
+}
+
+.mine {
+  inline-size: calc(var(--ms-cell-size) * 0.7);
+  block-size: calc(var(--ms-cell-size) * 0.7);
+  fill: currentColor;
+  color: var(--mat-sys-on-surface);
+
+  .shine {
+    fill: var(--mat-sys-surface);
+  }
+}
+
+:host(.is-exploded) .mine {
+  color: var(--mat-sys-on-error);
+
+  .shine {
+    fill: var(--mat-sys-error-container);
+  }
+}
+
+// Classic minesweeper number colours, tuned to stay readable in dark mode.
+:host([data-count='1']) .count {
+  color: #1976d2;
+}
+:host([data-count='2']) .count {
+  color: #2e7d32;
+}
+:host([data-count='3']) .count {
+  color: #d32f2f;
+}
+:host([data-count='4']) .count {
+  color: #6a1b9a;
+}
+:host([data-count='5']) .count {
+  color: #ad5f00;
+}
+:host([data-count='6']) .count {
+  color: #0097a7;
+}
+:host([data-count='7']) .count {
+  color: var(--mat-sys-on-surface);
+}
+:host([data-count='8']) .count {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@media (prefers-color-scheme: dark) {
+  :host([data-count='1']) .count {
+    color: #64b5f6;
+  }
+  :host([data-count='2']) .count {
+    color: #81c784;
+  }
+  :host([data-count='3']) .count {
+    color: #e57373;
+  }
+  :host([data-count='4']) .count {
+    color: #ba68c8;
+  }
+  :host([data-count='5']) .count {
+    color: #ffb74d;
+  }
+  :host([data-count='6']) .count {
+    color: #4dd0e1;
+  }
+}

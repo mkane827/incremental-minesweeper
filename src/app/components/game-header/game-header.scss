@@ -1,0 +1,38 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 12px;
+}
+
+.readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+}
+
+.readout-icon {
+  font-size: 20px;
+  inline-size: 20px;
+  block-size: 20px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.digits {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.face .mat-icon {
+  font-size: 28px;
+  inline-size: 28px;
+  block-size: 28px;
+}

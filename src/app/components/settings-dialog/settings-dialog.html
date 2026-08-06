@@ -1,0 +1,29 @@
+<h2 matDialogTitle>Keyboard shortcuts</h2>
+
+<mat-dialog-content class="content">
+  <label class="row">
+    <span>Reveal</span>
+    <select class="key-select" (change)="onRevealChange($any($event.target).value)">
+      @for (letter of revealOptions(); track letter) {
+        <option [value]="letter" [selected]="letter === revealKey()">
+          {{ letter.toUpperCase() }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label class="row">
+    <span>Flag</span>
+    <select class="key-select" (change)="onFlagChange($any($event.target).value)">
+      @for (letter of flagOptions(); track letter) {
+        <option [value]="letter" [selected]="letter === flagKey()">
+          {{ letter.toUpperCase() }}
+        </option>
+      }
+    </select>
+  </label>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button matButton (click)="close()">Done</button>
+</mat-dialog-actions>

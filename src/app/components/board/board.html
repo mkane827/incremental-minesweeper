@@ -1,0 +1,11 @@
+<div class="board" role="grid" [style.grid-template-columns]="gridTemplate()">
+  @for (cell of cells(); track cell.index) {
+    <ms-cell
+      [cell]="cell"
+      [locked]="locked()"
+      (reveal)="onReveal(cell.index)"
+      (flag)="onFlag(cell.index)"
+      (chord)="onChord(cell.index)"
+    />
+  }
+</div>

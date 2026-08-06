@@ -1,0 +1,25 @@
+:host {
+  display: block;
+  --ms-cell-size: 36px;
+}
+
+.board {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-low);
+  inline-size: fit-content;
+  margin-inline: auto;
+  touch-action: manipulation;
+}
+
+@media (max-width: 520px) {
+  :host {
+    --ms-cell-size: 30px;
+  }
+
+  .board {
+    gap: 2px;
+  }
+}

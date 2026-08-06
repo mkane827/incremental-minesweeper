@@ -1,0 +1,22 @@
+<div class="header">
+  <div class="readout" aria-label="Mines remaining">
+    <mat-icon class="readout-icon" aria-hidden="true">flag</mat-icon>
+    <span class="digits">{{ mineText() }}</span>
+  </div>
+
+  <button
+    matIconButton
+    class="face"
+    type="button"
+    matTooltip="New game"
+    aria-label="Start a new game"
+    (click)="reset()"
+  >
+    <mat-icon>{{ faceIcon() }}</mat-icon>
+  </button>
+
+  <div class="readout" aria-label="Elapsed time">
+    <mat-icon class="readout-icon" aria-hidden="true">timer</mat-icon>
+    <span class="digits">{{ elapsed() }}</span>
+  </div>
+</div>
