@@ -60,6 +60,11 @@
   block-size: calc(var(--ms-cell-size) * 0.68);
 }
 
+.sniffer {
+  font-size: calc(var(--ms-cell-size) * 0.65);
+  line-height: 1;
+}
+
 .strike {
   position: absolute;
   color: var(--mat-sys-on-surface);

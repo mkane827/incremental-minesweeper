@@ -4,6 +4,20 @@
     <span class="digits">{{ mineText() }}</span>
   </div>
 
+  <div class="readout" aria-label="Next sniffer activation in seconds">
+    <span class="sniffer-icon" aria-hidden="true">🐶</span>
+    <span class="digits" [class.is-hidden]="secondsUntilSniff() === 0">
+      {{ snifferText() }}
+    </span>
+  </div>
+
+  <div class="readout" aria-label="Next auto-chord attempt in seconds">
+    <span class="auto-chord-icon" aria-hidden="true">🤖</span>
+    <span class="digits" [class.is-hidden]="secondsUntilAutoChord() === 0">
+      {{ autoChordText() }}
+    </span>
+  </div>
+
   <button
     matIconButton
     class="face"

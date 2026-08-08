@@ -16,6 +16,8 @@ export interface Cell {
   readonly exploded: boolean;
   /** A flag that turned out to be wrong (only set once the game is lost). */
   readonly wrongFlag: boolean;
+  /** Whether a sniffer is active on this hidden square. */
+  readonly hasSniffer?: boolean;
 }
 
 export interface BoardConfig {

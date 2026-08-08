@@ -61,26 +61,23 @@ describe('GameStore', () => {
 
   it('ends the game as lost when the revealed cell is a mine', () => {
     const store = createStore();
-    // A 1x2 board would auto-win on the safe first click (only one non-mine
-    // cell exists), so use a third cell to keep the game open until the mine
-    // is clicked on purpose.
-    store.newGame({ rows: 1, cols: 3, mines: 1 });
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
 
-    store.reveal(0); // safe, forces the mine onto index 1, index 2 stays hidden
-    store.reveal(1);
+    store.reveal(3); // safe, mine is forced onto index 0; cells 0, 1, 2 stay hidden
+    store.reveal(0); // mine
 
     expect(store.status()).toBe('lost');
-    expect(store.cells()[1]).toMatchObject({ state: 'revealed', exploded: true });
+    expect(store.cells()[0]).toMatchObject({ state: 'revealed', exploded: true });
   });
 
   it('ignores further reveals once the game is over', () => {
     const store = createStore();
-    store.newGame({ rows: 1, cols: 3, mines: 1 });
-    store.reveal(0);
-    store.reveal(1); // loses
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+    store.reveal(3);
+    store.reveal(0); // loses
 
     const before = store.cells();
-    store.reveal(2);
+    store.reveal(1);
 
     expect(store.cells()).toBe(before);
   });
@@ -110,13 +107,13 @@ describe('GameStore', () => {
 
   it('does not flag anything once the game is over', () => {
     const store = createStore();
-    store.newGame({ rows: 1, cols: 3, mines: 1 });
-    store.reveal(0);
-    store.reveal(1); // loses
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+    store.reveal(3);
+    store.reveal(0); // loses
 
-    store.toggleFlag(2);
+    store.toggleFlag(1);
 
-    expect(store.cells()[2].state).not.toBe('flagged');
+    expect(store.cells()[1].state).not.toBe('flagged');
   });
 
   it('chord does nothing until the flagged count matches the adjacent mine count', () => {
@@ -181,10 +178,10 @@ describe('GameStore', () => {
   it('awards no currency on a loss', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    store.newGame({ rows: 1, cols: 3, mines: 1 });
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
 
-    store.reveal(0);
-    store.reveal(1); // loses
+    store.reveal(3);
+    store.reveal(0); // loses
 
     expect(store.status()).toBe('lost');
     expect(currency.mines()).toBe(0);
@@ -193,14 +190,97 @@ describe('GameStore', () => {
   it('counts elapsed seconds while playing and stops once the game ends', () => {
     vi.useFakeTimers();
     const store = createStore();
-    store.newGame({ rows: 1, cols: 3, mines: 1 });
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
 
-    store.reveal(0); // safe, mine forced onto index 1, index 2 stays hidden
+    store.reveal(3); // safe, mine forced onto index 0; index 1 & 2 stay hidden
     vi.advanceTimersByTime(3000);
     expect(store.elapsedSeconds()).toBe(3);
 
-    store.reveal(1); // loses, timer should stop
+    store.reveal(0); // loses, timer should stop
     vi.advanceTimersByTime(3000);
     expect(store.elapsedSeconds()).toBe(3);
+  });
+
+  it('toggles sniffer on a hidden cell', () => {
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+
+    store.toggleSniffer(0);
+    expect(store.cells()[0].hasSniffer).toBe(true);
+
+    store.toggleSniffer(0);
+    expect(store.cells()[0].hasSniffer).toBe(false);
+  });
+
+  it('resolves a sniffer every 10 seconds while playing', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+
+    store.reveal(3); // mine placed at index 0
+    store.toggleSniffer(0); // sniffer placed on mine cell 0
+
+    expect(store.cells()[0].state).toBe('hidden');
+    expect(store.cells()[0].hasSniffer).toBe(true);
+
+    vi.advanceTimersByTime(10000); // 10 seconds tick
+
+    expect(store.cells()[0].state).toBe('flagged'); // Safely flagged!
+    expect(store.cells()[0].hasSniffer).toBe(false);
+    expect(store.secondsUntilSniff()).toBe(10);
+  });
+
+  it('stops sniffer timer at 0 when no sniffers are marked, and immediately resolves a placed sniffer', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+
+    store.reveal(3); // starts playing, mine at 0
+    expect(store.secondsUntilSniff()).toBe(10);
+
+    vi.advanceTimersByTime(10000); // 10 seconds tick with no sniffers marked
+    expect(store.secondsUntilSniff()).toBe(0); // stops at 0
+
+    vi.advanceTimersByTime(5000);
+    expect(store.secondsUntilSniff()).toBe(0); // stays at 0
+
+    // Now place a sniffer on cell 0 while timer is at 0
+    store.toggleSniffer(0);
+
+    // Immediately resolved (cell 0 is mine -> flagged) & timer resets to 10
+    expect(store.cells()[0].state).toBe('flagged');
+    expect(store.secondsUntilSniff()).toBe(10);
+  });
+
+  it('automatically chords an available square after 10 seconds', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+
+    store.reveal(4); // mine forced onto index 0; cell 4 shows "1"
+    store.toggleFlag(0); // flag the mine - a chord at cell 4 is now available
+
+    vi.advanceTimersByTime(10000);
+
+    expect(store.status()).toBe('won');
+    expect(store.secondsUntilAutoChord()).toBe(10);
+  });
+
+  it('waits at 0 for a chord to become available, then resolves it on the next tick', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+
+    store.reveal(4); // mine forced onto index 0; no flags yet, no chord available
+
+    vi.advanceTimersByTime(10000);
+    expect(store.secondsUntilAutoChord()).toBe(0); // armed, waiting
+    expect(store.status()).toBe('playing');
+
+    store.toggleFlag(0); // flag the mine - a chord at cell 4 is now available
+
+    vi.advanceTimersByTime(1000); // next tick picks it up
+    expect(store.status()).toBe('won');
+    expect(store.secondsUntilAutoChord()).toBe(10);
   });
 });

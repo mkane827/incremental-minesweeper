@@ -23,8 +23,12 @@ export class GameHeader {
 
   protected readonly minesRemaining = this.store.minesRemaining;
   protected readonly status = this.store.status;
+  protected readonly secondsUntilSniff = this.store.secondsUntilSniff;
+  protected readonly secondsUntilAutoChord = this.store.secondsUntilAutoChord;
 
   protected readonly elapsed = computed(() => pad(this.store.elapsedSeconds()));
+  protected readonly snifferText = computed(() => `${pad2(this.secondsUntilSniff())}s`);
+  protected readonly autoChordText = computed(() => `${pad2(this.secondsUntilAutoChord())}s`);
   protected readonly mineText = computed(() => {
     const remaining = this.minesRemaining();
     return remaining < 0 ? `-${pad(Math.abs(remaining))}` : pad(remaining);
@@ -51,6 +55,16 @@ export class GameHeader {
     }
 
     const target = event.target;
+    if (target instanceof HTMLElement && target.closest('[role="dialog"]') !== null) {
+      return;
+    }
+
+    if (this.store.isOver()) {
+      event.preventDefault();
+      this.reset();
+      return;
+    }
+
     const isExempt =
       target instanceof HTMLElement &&
       (SPACE_EXEMPT_TAGS.has(target.tagName) || target.getAttribute('role') === 'gridcell');
@@ -65,4 +79,8 @@ export class GameHeader {
 
 function pad(value: number): string {
   return Math.min(value, 999).toString().padStart(3, '0');
+}
+
+function pad2(value: number): string {
+  return Math.min(value, 99).toString().padStart(2, '0');
 }

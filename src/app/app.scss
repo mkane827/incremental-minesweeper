@@ -40,7 +40,10 @@
   padding: 24px 16px 48px;
 }
 
-.game-card {
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   inline-size: fit-content;
   max-inline-size: 100%;
 }

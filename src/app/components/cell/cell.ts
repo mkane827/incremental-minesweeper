@@ -42,6 +42,7 @@ export class CellComponent {
   readonly reveal = output<void>();
   readonly flag = output<void>();
   readonly chord = output<void>();
+  readonly sniff = output<void>();
 
   /** Drives the per-number colours in SCSS via an attribute selector. */
   protected readonly countAttr = computed(() => {
@@ -60,7 +61,7 @@ export class CellComponent {
       case 'flagged':
         return `Flagged, ${position}`;
       case 'hidden':
-        return `Hidden, ${position}`;
+        return cell.hasSniffer ? `Sniffer placed, ${position}` : `Hidden, ${position}`;
       default:
         if (cell.isMine) {
           return `Mine, ${position}`;
@@ -75,13 +76,7 @@ export class CellComponent {
     if (this.locked()) {
       return;
     }
-
-    const cell = this.cell();
-    if (cell.state === 'revealed') {
-      this.chord.emit();
-    } else if (cell.state === 'hidden') {
-      this.reveal.emit();
-    }
+    this.executeAction(this.keybindings.primaryClickAction());
   }
 
   protected onSecondary(event: Event): void {
@@ -89,7 +84,30 @@ export class CellComponent {
     if (this.locked()) {
       return;
     }
-    this.flag.emit();
+    this.executeAction(this.keybindings.secondaryClickAction());
+  }
+
+  private executeAction(action: 'reveal' | 'flag' | 'sniff'): void {
+    const cell = this.cell();
+    switch (action) {
+      case 'reveal':
+        if (cell.state === 'revealed') {
+          this.chord.emit();
+        } else if (cell.state === 'hidden') {
+          this.reveal.emit();
+        }
+        break;
+      case 'flag':
+        if (cell.state !== 'revealed') {
+          this.flag.emit();
+        }
+        break;
+      case 'sniff':
+        if (cell.state === 'hidden') {
+          this.sniff.emit();
+        }
+        break;
+    }
   }
 
   /** Hovering a cell arms it for the reveal/flag keyboard shortcuts. */
@@ -117,10 +135,13 @@ export class CellComponent {
     const letter = event.key.toLowerCase();
     if (letter === this.keybindings.revealKey()) {
       event.preventDefault();
-      this.onPrimary();
+      this.executeAction('reveal');
     } else if (letter === this.keybindings.flagKey()) {
       event.preventDefault();
-      this.onSecondary(event);
+      this.executeAction('flag');
+    } else if (letter === this.keybindings.snifferKey()) {
+      event.preventDefault();
+      this.executeAction('sniff');
     }
   }
 }

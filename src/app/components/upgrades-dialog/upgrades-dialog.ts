@@ -27,8 +27,12 @@ export class UpgradesDialog {
     this.upgrades.buyMineCapacity();
   }
 
-  protected buyBoardSize(): void {
-    this.upgrades.buyBoardSize();
+  protected buyBoardRows(): void {
+    this.upgrades.buyBoardRows();
+  }
+
+  protected buyBoardCols(): void {
+    this.upgrades.buyBoardCols();
   }
 
   protected close(): void {

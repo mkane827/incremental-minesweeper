@@ -5,6 +5,8 @@
   @if (c.wrongFlag) {
     <mat-icon class="glyph strike">close</mat-icon>
   }
+} @else if (c.state === 'hidden' && c.hasSniffer) {
+  <span class="glyph sniffer">🐶</span>
 } @else if (c.state === 'revealed' && c.isMine) {
   <svg class="glyph mine" viewBox="0 0 24 24" aria-hidden="true">
     <path

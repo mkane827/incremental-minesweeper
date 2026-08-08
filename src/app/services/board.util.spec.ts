@@ -1,6 +1,8 @@
 import { BoardConfig } from '../models/cell';
 import {
+  autoFlag,
   createCells,
+  findAvailableChord,
   flagRemainingMines,
   floodReveal,
   isCleared,
@@ -179,6 +181,79 @@ describe('flagRemainingMines', () => {
     expect(next[3].state).toBe('flagged');
     expect(next[1].state).toBe('hidden');
     expect(next[2].state).toBe('hidden');
+  });
+});
+
+describe('autoFlag', () => {
+  it('automatically flags a hidden neighbor when unrevealed neighbors equal adjacentMines', () => {
+    // 1x3 board: [mine at 0, safe at 1 with adj=1 (revealed), safe at 2 (revealed)]
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const, adjacentMines: 0 };
+    });
+
+    const next = autoFlag(cells, config);
+    expect(next[0].state).toBe('flagged');
+  });
+
+  it('cascades auto-flagging when a newly flagged cell satisfies another neighbor condition', () => {
+    // 2x2 board:
+    // [mine at 0 (hidden), mine at 1 (hidden)]
+    // [safe at 2 (revealed, adj=2), safe at 3 (revealed, adj=1)]
+    const config: BoardConfig = { rows: 2, cols: 2, mines: 2 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0 || cell.index === 1) return { ...cell, isMine: true };
+      if (cell.index === 2) return { ...cell, state: 'revealed' as const, adjacentMines: 2 };
+      return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+    });
+
+    const next = autoFlag(cells, config);
+    expect(next[1].state).toBe('flagged'); // Auto-flagged by Cell 3
+    expect(next[0].state).toBe('flagged'); // Auto-flagged by Cell 2 after Cell 1 is flagged
+  });
+});
+
+describe('findAvailableChord', () => {
+  it('finds a revealed number whose flag count matches and still has a hidden neighbour', () => {
+    // 1x3 board: mine at 0 (flagged), "1" at 1 (revealed), hidden at 2.
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return cell;
+    });
+
+    expect(findAvailableChord(cells, config)).toBe(1);
+  });
+
+  it('ignores a satisfied number with nothing left to reveal', () => {
+    // Same as above, but cell 2 is already revealed too - chording cell 1 would be a no-op.
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const };
+    });
+
+    expect(findAvailableChord(cells, config)).toBeUndefined();
+  });
+
+  it('ignores a revealed number whose flag count does not yet match', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) =>
+      cell.index === 1 ? { ...cell, state: 'revealed' as const, adjacentMines: 1 } : cell,
+    );
+
+    expect(findAvailableChord(cells, config)).toBeUndefined();
+  });
+
+  it('returns undefined on a board with no revealed numbers', () => {
+    const config: BoardConfig = { rows: 2, cols: 2, mines: 1 };
+    const cells = createCells(config);
+
+    expect(findAvailableChord(cells, config)).toBeUndefined();
   });
 });
 

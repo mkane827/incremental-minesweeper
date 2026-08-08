@@ -1,7 +1,9 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { BoardConfig, Cell, GameStatus } from '../models/cell';
 import {
+  autoFlag,
   createCells,
+  findAvailableChord,
   flagRemainingMines,
   floodReveal,
   isCleared,
@@ -32,11 +34,15 @@ export class GameStore {
   private readonly _cells = signal<readonly Cell[]>(createCells(this._config()));
   private readonly _status = signal<GameStatus>('idle');
   private readonly _elapsedSeconds = signal(0);
+  private readonly _secondsUntilSniff = signal(10);
+  private readonly _secondsUntilAutoChord = signal(10);
 
   readonly config = this._config.asReadonly();
   readonly cells = this._cells.asReadonly();
   readonly status = this._status.asReadonly();
   readonly elapsedSeconds = this._elapsedSeconds.asReadonly();
+  readonly secondsUntilSniff = this._secondsUntilSniff.asReadonly();
+  readonly secondsUntilAutoChord = this._secondsUntilAutoChord.asReadonly();
 
   readonly flagCount = computed(
     () => this._cells().filter((cell) => cell.state === 'flagged').length,
@@ -65,6 +71,8 @@ export class GameStore {
     this._cells.set(createCells(config));
     this._status.set('idle');
     this._elapsedSeconds.set(0);
+    this._secondsUntilSniff.set(10);
+    this._secondsUntilAutoChord.set(10);
   }
 
   /** Left click: uncover a square (or chord, if it is already a number). */
@@ -94,7 +102,7 @@ export class GameStore {
       return;
     }
 
-    const next = floodReveal(cells, index, config);
+    const next = autoFlag(floodReveal(cells, index, config), config);
     this._cells.set(next);
     this.settle(next);
   }
@@ -115,8 +123,39 @@ export class GameStore {
     next[index] = {
       ...target,
       state: target.state === 'flagged' ? 'hidden' : 'flagged',
+      hasSniffer: false,
     };
     this._cells.set(next);
+  }
+
+  /** Places or removes a sniffer (🐶) on a hidden square. */
+  toggleSniffer(index: number): void {
+    if (this.isOver()) {
+      return;
+    }
+
+    const cells = this._cells();
+    const target = cells[index];
+    if (!target || target.state !== 'hidden') {
+      return;
+    }
+
+    if (target.hasSniffer) {
+      const next = cells.slice();
+      next[index] = { ...target, hasSniffer: false };
+      this._cells.set(next);
+      return;
+    }
+
+    // Placing a sniffer when the timer is sitting at 0 immediately resolves it.
+    if (this._secondsUntilSniff() === 0 && this._status() === 'playing') {
+      this.resolveSnifferAtIndex(index);
+      this._secondsUntilSniff.set(10);
+    } else {
+      const next = cells.slice();
+      next[index] = { ...target, hasSniffer: true };
+      this._cells.set(next);
+    }
   }
 
   /**
@@ -153,6 +192,7 @@ export class GameStore {
     for (const n of toReveal) {
       next = floodReveal(next, n, config);
     }
+    next = autoFlag(next, config);
     this._cells.set(next);
     this.settle(next);
   }
@@ -184,6 +224,29 @@ export class GameStore {
     this.stopTimer();
     this.timerId = setInterval(() => {
       this._elapsedSeconds.update((value) => Math.min(value + 1, MAX_ELAPSED));
+      this._secondsUntilSniff.update((seconds) => {
+        if (seconds <= 0) {
+          return 0;
+        }
+
+        const next = seconds - 1;
+        if (next === 0) {
+          const hasAnySniffer = this._cells().some((c) => c.state === 'hidden' && c.hasSniffer);
+          if (hasAnySniffer) {
+            this.resolveRandomSniffer();
+            return 10;
+          }
+          return 0;
+        }
+        return next;
+      });
+      this._secondsUntilAutoChord.update((seconds) => {
+        const next = seconds > 0 ? seconds - 1 : 0;
+        if (next === 0) {
+          return this.tryAutoChord() ? 10 : 0;
+        }
+        return next;
+      });
     }, 1000);
   }
 
@@ -192,5 +255,59 @@ export class GameStore {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+  }
+
+  private resolveSnifferAtIndex(index: number): void {
+    if (this.isOver()) {
+      return;
+    }
+
+    const cells = this._cells();
+    const target = cells[index];
+    if (!target) {
+      return;
+    }
+
+    if (target.isMine) {
+      const next = cells.slice();
+      next[index] = {
+        ...target,
+        state: 'flagged',
+        hasSniffer: false,
+      };
+      this._cells.set(next);
+      this.settle(next);
+    } else {
+      let next = cells.slice();
+      next[index] = { ...target, hasSniffer: false };
+      next = autoFlag(floodReveal(next, index, this._config()), this._config());
+      this._cells.set(next);
+      this.settle(next);
+    }
+  }
+
+  /** Resolves one random cell marked with a sniffer. */
+  private resolveRandomSniffer(): void {
+    const cells = this._cells();
+    const snifferIndexes = cells
+      .filter((cell) => cell.state === 'hidden' && cell.hasSniffer)
+      .map((cell) => cell.index);
+
+    if (snifferIndexes.length === 0) {
+      return;
+    }
+
+    const randomIndex = snifferIndexes[Math.floor(Math.random() * snifferIndexes.length)];
+    this.resolveSnifferAtIndex(randomIndex);
+  }
+
+  /** Chords one available square, if any. Returns whether one was found. */
+  private tryAutoChord(): boolean {
+    const index = findAvailableChord(this._cells(), this._config());
+    if (index === undefined) {
+      return false;
+    }
+    this.chord(index);
+    return true;
   }
 }

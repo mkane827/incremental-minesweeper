@@ -14,6 +14,7 @@ export function createCells(config: BoardConfig): Cell[] {
         state: 'hidden',
         exploded: false,
         wrongFlag: false,
+        hasSniffer: false,
       });
     }
   }
@@ -155,7 +156,75 @@ export function flagRemainingMines(cells: readonly Cell[]): Cell[] {
   );
 }
 
+/**
+ * Auto-flags any hidden cell whose status as a mine is logically guaranteed
+ * by adjacent revealed numbers (i.e. where the number of unrevealed neighbours
+ * equals the cell's adjacent mine count).
+ */
+export function autoFlag(cells: readonly Cell[], config: BoardConfig): Cell[] {
+  const current = cells.slice();
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < current.length; i++) {
+      const cell = current[i];
+      if (cell.state !== 'revealed' || cell.isMine || cell.adjacentMines === 0) {
+        continue;
+      }
+
+      const neighbors = neighborIndexes(cell.index, config);
+      let unrevealedCount = 0;
+      const hiddenNeighbors: number[] = [];
+
+      for (const n of neighbors) {
+        const neighborState = current[n].state;
+        if (neighborState === 'hidden') {
+          unrevealedCount++;
+          hiddenNeighbors.push(n);
+        } else if (neighborState === 'flagged') {
+          unrevealedCount++;
+        }
+      }
+
+      if (unrevealedCount === cell.adjacentMines && hiddenNeighbors.length > 0) {
+        for (const h of hiddenNeighbors) {
+          current[h] = { ...current[h], state: 'flagged' };
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return current;
+}
+
 /** The board is cleared when every non-mine square has been revealed. */
 export function isCleared(cells: readonly Cell[]): boolean {
   return cells.every((cell) => cell.isMine || cell.state === 'revealed');
+}
+
+/**
+ * Finds a revealed number whose flag count already matches, and that still
+ * has at least one hidden neighbour left to reveal (i.e. chording it would
+ * actually make progress). Returns `undefined` if no such square exists.
+ */
+export function findAvailableChord(cells: readonly Cell[], config: BoardConfig): number | undefined {
+  for (const cell of cells) {
+    if (cell.state !== 'revealed' || cell.adjacentMines === 0) {
+      continue;
+    }
+
+    const neighbors = neighborIndexes(cell.index, config);
+    const flagged = neighbors.filter((n) => cells[n].state === 'flagged').length;
+    if (flagged !== cell.adjacentMines) {
+      continue;
+    }
+
+    if (neighbors.some((n) => cells[n].state === 'hidden')) {
+      return cell.index;
+    }
+  }
+
+  return undefined;
 }

@@ -19,23 +19,29 @@ describe('UpgradesStore', () => {
     expect(store.maxMines()).toBe(BASE_MAX_MINES);
     expect(store.mineCapacityCost()).toBe(10);
 
-    expect(store.boardSizeLevel()).toBe(0);
+    expect(store.boardRowsLevel()).toBe(0);
     expect(store.boardRows()).toBe(BASE_ROWS);
+    expect(store.boardRowsCost()).toBe(15);
+
+    expect(store.boardColsLevel()).toBe(0);
     expect(store.boardCols()).toBe(BASE_COLS);
-    expect(store.boardSizeCost()).toBe(25);
+    expect(store.boardColsCost()).toBe(15);
   });
 
-  it('refuses to buy either upgrade without enough currency', () => {
+  it('refuses to buy upgrades without enough currency', () => {
     const store = createStore();
 
     expect(store.canAffordMineCapacity()).toBe(false);
-    expect(store.canAffordBoardSize()).toBe(false);
+    expect(store.canAffordBoardRows()).toBe(false);
+    expect(store.canAffordBoardCols()).toBe(false);
 
     store.buyMineCapacity();
-    store.buyBoardSize();
+    store.buyBoardRows();
+    store.buyBoardCols();
 
     expect(store.mineCapacityLevel()).toBe(0);
-    expect(store.boardSizeLevel()).toBe(0);
+    expect(store.boardRowsLevel()).toBe(0);
+    expect(store.boardColsLevel()).toBe(0);
   });
 
   it('buys a mine capacity level, spending currency and raising max mines by one', () => {
@@ -50,15 +56,24 @@ describe('UpgradesStore', () => {
     expect(currency.mines()).toBe(0);
   });
 
-  it('buys a board size level, spending currency and growing both dimensions by one', () => {
+  it('buys board row and col levels independently', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(25);
+    currency.earn(15);
 
-    store.buyBoardSize();
+    store.buyBoardRows();
 
-    expect(store.boardSizeLevel()).toBe(1);
+    expect(store.boardRowsLevel()).toBe(1);
     expect(store.boardRows()).toBe(BASE_ROWS + 1);
+    expect(store.boardColsLevel()).toBe(0);
+    expect(store.boardCols()).toBe(BASE_COLS);
+    expect(currency.mines()).toBe(0);
+
+    currency.earn(15);
+    store.buyBoardCols();
+
+    expect(store.boardRowsLevel()).toBe(1);
+    expect(store.boardColsLevel()).toBe(1);
     expect(store.boardCols()).toBe(BASE_COLS + 1);
     expect(currency.mines()).toBe(0);
   });
@@ -66,35 +81,53 @@ describe('UpgradesStore', () => {
   it('raises the cost of each upgrade independently after a purchase', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(10);
-    store.buyMineCapacity();
+    currency.earn(15);
+    store.buyBoardRows();
 
-    expect(store.mineCapacityCost()).toBe(12); // round(10 * 1.15^1)
-    expect(store.boardSizeCost()).toBe(25); // unaffected by the other track
+    expect(store.boardRowsCost()).toBe(18); // round(15 * 1.2^1)
+    expect(store.boardColsCost()).toBe(15); // unaffected
+    expect(store.mineCapacityCost()).toBe(10); // unaffected
   });
 
-  it('persists both purchased levels independently', () => {
+  it('persists purchased levels independently', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(35);
+    currency.earn(40);
     store.buyMineCapacity();
-    store.buyBoardSize();
+    store.buyBoardRows();
+    store.buyBoardCols();
 
     expect(JSON.parse(localStorage.getItem('ms-upgrades')!)).toEqual({
       mineCapacity: 1,
-      boardSize: 1,
+      boardRows: 1,
+      boardCols: 1,
     });
   });
 
   it('loads previously persisted levels', () => {
-    localStorage.setItem('ms-upgrades', JSON.stringify({ mineCapacity: 4, boardSize: 2 }));
+    localStorage.setItem(
+      'ms-upgrades',
+      JSON.stringify({ mineCapacity: 4, boardRows: 2, boardCols: 3 }),
+    );
 
     const store = createStore();
 
     expect(store.mineCapacityLevel()).toBe(4);
     expect(store.maxMines()).toBe(BASE_MAX_MINES + 4);
-    expect(store.boardSizeLevel()).toBe(2);
+    expect(store.boardRowsLevel()).toBe(2);
     expect(store.boardRows()).toBe(BASE_ROWS + 2);
+    expect(store.boardColsLevel()).toBe(3);
+    expect(store.boardCols()).toBe(BASE_COLS + 3);
+  });
+
+  it('migrates legacy boardSize saved data to equal row and column levels', () => {
+    localStorage.setItem('ms-upgrades', JSON.stringify({ mineCapacity: 2, boardSize: 3 }));
+
+    const store = createStore();
+
+    expect(store.mineCapacityLevel()).toBe(2);
+    expect(store.boardRowsLevel()).toBe(3);
+    expect(store.boardColsLevel()).toBe(3);
   });
 
   it('falls back to zero levels when stored upgrades are malformed', () => {
@@ -103,6 +136,7 @@ describe('UpgradesStore', () => {
     const store = createStore();
 
     expect(store.mineCapacityLevel()).toBe(0);
-    expect(store.boardSizeLevel()).toBe(0);
+    expect(store.boardRowsLevel()).toBe(0);
+    expect(store.boardColsLevel()).toBe(0);
   });
 });

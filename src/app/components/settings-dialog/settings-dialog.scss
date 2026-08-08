@@ -3,6 +3,15 @@
   flex-direction: column;
   gap: 16px;
   min-inline-size: 240px;
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-small);
+    color: var(--mat-sys-primary);
+  }
+
+  .section-title {
+    margin-top: 8px;
+  }
 }
 
 .row {

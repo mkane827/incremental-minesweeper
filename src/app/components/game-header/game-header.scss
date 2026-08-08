@@ -1,19 +1,22 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 4px 4px 12px;
 }
 
 .readout {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
   background: var(--mat-sys-surface-container-highest);
   color: var(--mat-sys-on-surface);
+  box-sizing: border-box;
 }
 
 .readout-icon {
@@ -23,12 +26,23 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
+.sniffer-icon,
+.auto-chord-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+
 .digits {
   font-family: 'Roboto Mono', ui-monospace, monospace;
   font-size: 18px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 1px;
+
+  &.is-hidden {
+    visibility: hidden;
+  }
 }
 
 .face .mat-icon {

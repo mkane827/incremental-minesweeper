@@ -11,10 +11,13 @@ describe('KeybindingsStore', () => {
     TestBed.configureTestingModule({});
   });
 
-  it('defaults to z for reveal and x for flag', () => {
+  it('defaults to z for reveal, x for flag, c for sniffer, and standard mouse clicks', () => {
     const store = createStore();
     expect(store.revealKey()).toBe('z');
     expect(store.flagKey()).toBe('x');
+    expect(store.snifferKey()).toBe('c');
+    expect(store.primaryClickAction()).toBe('reveal');
+    expect(store.secondaryClickAction()).toBe('flag');
   });
 
   it('accepts a new reveal key and persists it', () => {
@@ -22,10 +25,7 @@ describe('KeybindingsStore', () => {
     store.setRevealKey('R');
 
     expect(store.revealKey()).toBe('r');
-    expect(JSON.parse(localStorage.getItem('ms-keybindings')!)).toEqual({
-      revealKey: 'r',
-      flagKey: 'x',
-    });
+    expect(JSON.parse(localStorage.getItem('ms-keybindings')!).revealKey).toBe('r');
   });
 
   it('accepts a new flag key and persists it', () => {
@@ -35,36 +35,55 @@ describe('KeybindingsStore', () => {
     expect(store.flagKey()).toBe('f');
   });
 
-  it('rejects a reveal key that collides with the current flag key', () => {
+  it('accepts a new sniffer key and mouse click actions and persists them', () => {
     const store = createStore();
-    store.setRevealKey('x');
+    store.setSnifferKey('V');
+    store.setPrimaryClickAction('sniff');
+    store.setSecondaryClickAction('reveal');
 
-    expect(store.revealKey()).toBe('z');
+    expect(store.snifferKey()).toBe('v');
+    expect(store.primaryClickAction()).toBe('sniff');
+    expect(store.secondaryClickAction()).toBe('reveal');
   });
 
-  it('rejects a flag key that collides with the current reveal key', () => {
+  it('rejects a reveal key that collides with flag or sniffer key', () => {
     const store = createStore();
-    store.setFlagKey('z');
+    store.setRevealKey('x');
+    expect(store.revealKey()).toBe('z');
 
-    expect(store.flagKey()).toBe('x');
+    store.setRevealKey('c');
+    expect(store.revealKey()).toBe('z');
   });
 
   it('rejects non-letter input', () => {
     const store = createStore();
     store.setRevealKey('1');
     store.setFlagKey('!');
+    store.setSnifferKey('9');
 
     expect(store.revealKey()).toBe('z');
     expect(store.flagKey()).toBe('x');
+    expect(store.snifferKey()).toBe('c');
   });
 
   it('loads previously persisted bindings on construction', () => {
-    localStorage.setItem('ms-keybindings', JSON.stringify({ revealKey: 'q', flagKey: 'w' }));
+    localStorage.setItem(
+      'ms-keybindings',
+      JSON.stringify({
+        revealKey: 'q',
+        flagKey: 'w',
+        snifferKey: 'e',
+        primaryClickAction: 'sniff',
+        secondaryClickAction: 'flag',
+      }),
+    );
 
     const store = createStore();
 
     expect(store.revealKey()).toBe('q');
     expect(store.flagKey()).toBe('w');
+    expect(store.snifferKey()).toBe('e');
+    expect(store.primaryClickAction()).toBe('sniff');
   });
 
   it('falls back to defaults when stored bindings are malformed', () => {
@@ -74,5 +93,6 @@ describe('KeybindingsStore', () => {
 
     expect(store.revealKey()).toBe('z');
     expect(store.flagKey()).toBe('x');
+    expect(store.snifferKey()).toBe('c');
   });
 });

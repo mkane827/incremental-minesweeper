@@ -27,19 +27,17 @@
 </mat-toolbar>
 
 <main class="page">
-  <mat-card class="game-card" appearance="outlined">
-    <mat-card-content>
-      <ms-game-header />
-      <ms-board />
+  <div class="game-container">
+    <ms-game-header />
+    <ms-board />
 
-      @if (banner(); as info) {
-        <p class="banner" [class.is-lost]="status() === 'lost'" role="status">
-          <mat-icon aria-hidden="true">{{ info.icon }}</mat-icon>
-          <span>{{ info.text }}</span>
-        </p>
-      }
-    </mat-card-content>
-  </mat-card>
+    @if (banner(); as info) {
+      <p class="banner" [class.is-lost]="status() === 'lost'" role="status">
+        <mat-icon aria-hidden="true">{{ info.icon }}</mat-icon>
+        <span>{{ info.text }}</span>
+      </p>
+    }
+  </div>
 
   <p class="hint">
     Left click to reveal &middot; right click to flag &middot; click a number with all its

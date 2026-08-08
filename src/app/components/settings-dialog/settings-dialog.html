@@ -1,6 +1,8 @@
-<h2 matDialogTitle>Keyboard shortcuts</h2>
+<h2 matDialogTitle>Controls & Shortcuts</h2>
 
 <mat-dialog-content class="content">
+  <h3>Keyboard shortcuts</h3>
+
   <label class="row">
     <span>Reveal</span>
     <select class="key-select" (change)="onRevealChange($any($event.target).value)">
@@ -18,6 +20,41 @@
       @for (letter of flagOptions(); track letter) {
         <option [value]="letter" [selected]="letter === flagKey()">
           {{ letter.toUpperCase() }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label class="row">
+    <span>Sniffer (🐶)</span>
+    <select class="key-select" (change)="onSnifferChange($any($event.target).value)">
+      @for (letter of snifferOptions(); track letter) {
+        <option [value]="letter" [selected]="letter === snifferKey()">
+          {{ letter.toUpperCase() }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <h3 class="section-title">Mouse click actions</h3>
+
+  <label class="row">
+    <span>Left Click</span>
+    <select class="key-select" (change)="onPrimaryClickChange($any($event.target).value)">
+      @for (opt of clickOptions; track opt.value) {
+        <option [value]="opt.value" [selected]="opt.value === primaryClickAction()">
+          {{ opt.label }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label class="row">
+    <span>Right Click</span>
+    <select class="key-select" (change)="onSecondaryClickChange($any($event.target).value)">
+      @for (opt of clickOptions; track opt.value) {
+        <option [value]="opt.value" [selected]="opt.value === secondaryClickAction()">
+          {{ opt.label }}
         </option>
       }
     </select>

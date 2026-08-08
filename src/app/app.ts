@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { MatCard, MatCardContent } from '@angular/material/card';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
@@ -16,8 +15,6 @@ import { KeybindingsStore } from './services/keybindings-store';
 @Component({
   selector: 'ms-root',
   imports: [
-    MatCard,
-    MatCardContent,
     MatToolbar,
     MatIcon,
     MatIconButton,
@@ -39,8 +36,9 @@ export class App {
 
   protected readonly keyHint = computed(
     () =>
-      `Tab to a square, then ${this.keybindings.revealKey().toUpperCase()} to reveal or ` +
-      `${this.keybindings.flagKey().toUpperCase()} to flag.`,
+      `Tab to a square, then ${this.keybindings.revealKey().toUpperCase()} to reveal, ` +
+      `${this.keybindings.flagKey().toUpperCase()} to flag, or ` +
+      `${this.keybindings.snifferKey().toUpperCase()} to place a sniffer (🐶).`,
   );
 
   protected openSettings(): void {

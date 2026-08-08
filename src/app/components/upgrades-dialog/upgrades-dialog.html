@@ -24,20 +24,39 @@
 
   <div class="upgrade">
     <div class="upgrade-info">
-      <span class="upgrade-name">Board size</span>
+      <span class="upgrade-name">Add row</span>
       <span class="upgrade-detail">
-        Currently {{ upgrades.boardRows() }}&times;{{ upgrades.boardCols() }} &middot; next board
-        will be {{ upgrades.boardRows() + 1 }}&times;{{ upgrades.boardCols() + 1 }}
+        Currently {{ upgrades.boardRows() }} rows &middot; next board will have
+        {{ upgrades.boardRows() + 1 }} rows
       </span>
     </div>
     <button
       matButton="filled"
       type="button"
-      [disabled]="!upgrades.canAffordBoardSize()"
-      (click)="buyBoardSize()"
+      [disabled]="!upgrades.canAffordBoardRows()"
+      (click)="buyBoardRows()"
     >
       <mat-icon aria-hidden="true">diamond</mat-icon>
-      {{ upgrades.boardSizeCost() }}
+      {{ upgrades.boardRowsCost() }}
+    </button>
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Add column</span>
+      <span class="upgrade-detail">
+        Currently {{ upgrades.boardCols() }} columns &middot; next board will have
+        {{ upgrades.boardCols() + 1 }} columns
+      </span>
+    </div>
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="!upgrades.canAffordBoardCols()"
+      (click)="buyBoardCols()"
+    >
+      <mat-icon aria-hidden="true">diamond</mat-icon>
+      {{ upgrades.boardColsCost() }}
     </button>
   </div>
 </mat-dialog-content>

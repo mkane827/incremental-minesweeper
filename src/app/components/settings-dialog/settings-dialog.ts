@@ -6,7 +6,7 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { KeybindingsStore, LETTERS } from '../../services/keybindings-store';
+import { ClickAction, KeybindingsStore, LETTERS } from '../../services/keybindings-store';
 
 @Component({
   selector: 'ms-settings-dialog',
@@ -21,13 +21,25 @@ export class SettingsDialog {
 
   protected readonly revealKey = this.keybindings.revealKey;
   protected readonly flagKey = this.keybindings.flagKey;
+  protected readonly snifferKey = this.keybindings.snifferKey;
 
-  /** Every letter is offered on both selects except whichever the other action already owns. */
+  protected readonly primaryClickAction = this.keybindings.primaryClickAction;
+  protected readonly secondaryClickAction = this.keybindings.secondaryClickAction;
+
+  protected readonly clickOptions: { label: string; value: ClickAction }[] = [
+    { label: 'Reveal / Chord', value: 'reveal' },
+    { label: 'Toggle Flag', value: 'flag' },
+    { label: 'Place Sniffer (🐶)', value: 'sniff' },
+  ];
+
   protected readonly revealOptions = computed(() =>
-    LETTERS.filter((letter) => letter !== this.flagKey()),
+    LETTERS.filter((l) => l !== this.flagKey() && l !== this.snifferKey()),
   );
   protected readonly flagOptions = computed(() =>
-    LETTERS.filter((letter) => letter !== this.revealKey()),
+    LETTERS.filter((l) => l !== this.revealKey() && l !== this.snifferKey()),
+  );
+  protected readonly snifferOptions = computed(() =>
+    LETTERS.filter((l) => l !== this.revealKey() && l !== this.flagKey()),
   );
 
   protected onRevealChange(value: string): void {
@@ -36,6 +48,18 @@ export class SettingsDialog {
 
   protected onFlagChange(value: string): void {
     this.keybindings.setFlagKey(value);
+  }
+
+  protected onSnifferChange(value: string): void {
+    this.keybindings.setSnifferKey(value);
+  }
+
+  protected onPrimaryClickChange(value: ClickAction): void {
+    this.keybindings.setPrimaryClickAction(value);
+  }
+
+  protected onSecondaryClickChange(value: ClickAction): void {
+    this.keybindings.setSecondaryClickAction(value);
   }
 
   protected close(): void {

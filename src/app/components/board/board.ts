@@ -30,4 +30,8 @@ export class Board {
   protected onChord(index: number): void {
     this.store.chord(index);
   }
+
+  protected onSniff(index: number): void {
+    this.store.toggleSniffer(index);
+  }
 }
