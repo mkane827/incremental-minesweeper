@@ -34,8 +34,8 @@ export class GameStore {
   private readonly _cells = signal<readonly Cell[]>(createCells(this._config()));
   private readonly _status = signal<GameStatus>('idle');
   private readonly _elapsedSeconds = signal(0);
-  private readonly _secondsUntilSniff = signal(10);
-  private readonly _secondsUntilAutoChord = signal(10);
+  private readonly _secondsUntilSniff = signal(this.upgrades.snifferIntervalSeconds());
+  private readonly _secondsUntilAutoChord = signal(this.upgrades.autoChordIntervalSeconds());
 
   readonly config = this._config.asReadonly();
   readonly cells = this._cells.asReadonly();
@@ -71,8 +71,8 @@ export class GameStore {
     this._cells.set(createCells(config));
     this._status.set('idle');
     this._elapsedSeconds.set(0);
-    this._secondsUntilSniff.set(10);
-    this._secondsUntilAutoChord.set(10);
+    this._secondsUntilSniff.set(this.upgrades.snifferIntervalSeconds());
+    this._secondsUntilAutoChord.set(this.upgrades.autoChordIntervalSeconds());
   }
 
   /** Left click: uncover a square (or chord, if it is already a number). */
@@ -150,7 +150,7 @@ export class GameStore {
     // Placing a sniffer when the timer is sitting at 0 immediately resolves it.
     if (this._secondsUntilSniff() === 0 && this._status() === 'playing') {
       this.resolveSnifferAtIndex(index);
-      this._secondsUntilSniff.set(10);
+      this._secondsUntilSniff.set(this.upgrades.snifferIntervalSeconds());
     } else {
       const next = cells.slice();
       next[index] = { ...target, hasSniffer: true };
@@ -225,25 +225,16 @@ export class GameStore {
     this.timerId = setInterval(() => {
       this._elapsedSeconds.update((value) => Math.min(value + 1, MAX_ELAPSED));
       this._secondsUntilSniff.update((seconds) => {
-        if (seconds <= 0) {
-          return 0;
-        }
-
-        const next = seconds - 1;
+        const next = seconds > 0 ? seconds - 1 : 0;
         if (next === 0) {
-          const hasAnySniffer = this._cells().some((c) => c.state === 'hidden' && c.hasSniffer);
-          if (hasAnySniffer) {
-            this.resolveRandomSniffer();
-            return 10;
-          }
-          return 0;
+          return this.tryResolveSniffer() ? this.upgrades.snifferIntervalSeconds() : 0;
         }
         return next;
       });
       this._secondsUntilAutoChord.update((seconds) => {
         const next = seconds > 0 ? seconds - 1 : 0;
         if (next === 0) {
-          return this.tryAutoChord() ? 10 : 0;
+          return this.tryAutoChord() ? this.upgrades.autoChordIntervalSeconds() : 0;
         }
         return next;
       });
@@ -286,19 +277,28 @@ export class GameStore {
     }
   }
 
-  /** Resolves one random cell marked with a sniffer. */
-  private resolveRandomSniffer(): void {
+  /**
+   * Resolves one marked sniffer if any are placed; otherwise auto-sniffs a
+   * random hidden square. Returns whether a square was resolved.
+   */
+  private tryResolveSniffer(): boolean {
     const cells = this._cells();
     const snifferIndexes = cells
       .filter((cell) => cell.state === 'hidden' && cell.hasSniffer)
       .map((cell) => cell.index);
 
-    if (snifferIndexes.length === 0) {
-      return;
+    const candidates =
+      snifferIndexes.length > 0
+        ? snifferIndexes
+        : cells.filter((cell) => cell.state === 'hidden').map((cell) => cell.index);
+
+    if (candidates.length === 0) {
+      return false;
     }
 
-    const randomIndex = snifferIndexes[Math.floor(Math.random() * snifferIndexes.length)];
+    const randomIndex = candidates[Math.floor(Math.random() * candidates.length)];
     this.resolveSnifferAtIndex(randomIndex);
+    return true;
   }
 
   /** Chords one available square, if any. Returns whether one was found. */

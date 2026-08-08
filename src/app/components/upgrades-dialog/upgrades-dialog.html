@@ -59,6 +59,60 @@
       {{ upgrades.boardColsCost() }}
     </button>
   </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Sniffer speed</span>
+      <span class="upgrade-detail">
+        @if (upgrades.isSnifferSpeedMaxed()) {
+          Resolves every {{ upgrades.snifferIntervalSeconds() }}s &middot; fully upgraded
+        } @else {
+          Resolves every {{ upgrades.snifferIntervalSeconds() }}s &middot; next will be
+          {{ upgrades.snifferIntervalSeconds() - 1 }}s
+        }
+      </span>
+    </div>
+    @if (upgrades.isSnifferSpeedMaxed()) {
+      <button matButton="filled" type="button" disabled>MAX</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!upgrades.canAffordSnifferSpeed()"
+        (click)="buySnifferSpeed()"
+      >
+        <mat-icon aria-hidden="true">diamond</mat-icon>
+        {{ upgrades.snifferSpeedCost() }}
+      </button>
+    }
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Auto-chord speed</span>
+      <span class="upgrade-detail">
+        @if (upgrades.isAutoChordSpeedMaxed()) {
+          Resolves every {{ upgrades.autoChordIntervalSeconds() }}s &middot; fully upgraded
+        } @else {
+          Resolves every {{ upgrades.autoChordIntervalSeconds() }}s &middot; next will be
+          {{ upgrades.autoChordIntervalSeconds() - 1 }}s
+        }
+      </span>
+    </div>
+    @if (upgrades.isAutoChordSpeedMaxed()) {
+      <button matButton="filled" type="button" disabled>MAX</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!upgrades.canAffordAutoChordSpeed()"
+        (click)="buyAutoChordSpeed()"
+      >
+        <mat-icon aria-hidden="true">diamond</mat-icon>
+        {{ upgrades.autoChordSpeedCost() }}
+      </button>
+    }
+  </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">

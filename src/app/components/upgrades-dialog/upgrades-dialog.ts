@@ -35,6 +35,14 @@ export class UpgradesDialog {
     this.upgrades.buyBoardCols();
   }
 
+  protected buySnifferSpeed(): void {
+    this.upgrades.buySnifferSpeed();
+  }
+
+  protected buyAutoChordSpeed(): void {
+    this.upgrades.buyAutoChordSpeed();
+  }
+
   protected close(): void {
     this.dialogRef.close();
   }

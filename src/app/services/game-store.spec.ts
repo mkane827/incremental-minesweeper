@@ -38,6 +38,18 @@ describe('GameStore', () => {
     expect(store.config()).toEqual({ rows: 10, cols: 10, mines: 13 });
   });
 
+  it('uses the current speed upgrade levels for the sniffer and auto-chord countdowns', () => {
+    localStorage.setItem(
+      'ms-upgrades',
+      JSON.stringify({ mineCapacity: 0, snifferSpeed: 4, autoChordSpeed: 2 }),
+    );
+    const store = createStore();
+
+    // 10s base - 4 levels = 6s, 10s base - 2 levels = 8s
+    expect(store.secondsUntilSniff()).toBe(6);
+    expect(store.secondsUntilAutoChord()).toBe(8);
+  });
+
   it('newGame resets to a chosen board size', () => {
     const store = createStore();
     store.newGame({ rows: 3, cols: 3, mines: 1 });
@@ -230,25 +242,44 @@ describe('GameStore', () => {
     expect(store.secondsUntilSniff()).toBe(10);
   });
 
-  it('stops sniffer timer at 0 when no sniffers are marked, and immediately resolves a placed sniffer', () => {
+  it('auto-sniffs a random hidden square when the timer hits zero with no sniffer marked', () => {
     vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
-    store.reveal(3); // starts playing, mine at 0
+    store.reveal(3); // starts playing, mine at 0; cells 0, 1, 2 stay hidden
     expect(store.secondsUntilSniff()).toBe(10);
 
-    vi.advanceTimersByTime(10000); // 10 seconds tick with no sniffers marked
-    expect(store.secondsUntilSniff()).toBe(0); // stops at 0
+    vi.advanceTimersByTime(10000); // 10 seconds tick with no sniffer marked
 
-    vi.advanceTimersByTime(5000);
-    expect(store.secondsUntilSniff()).toBe(0); // stays at 0
-
-    // Now place a sniffer on cell 0 while timer is at 0
-    store.toggleSniffer(0);
-
-    // Immediately resolved (cell 0 is mine -> flagged) & timer resets to 10
+    // Autosniffer picks a random hidden cell (index 0, the mine, since
+    // Math.random is mocked to 0) - safely flagged, never revealed as a mine.
     expect(store.cells()[0].state).toBe('flagged');
+    expect(store.secondsUntilSniff()).toBe(10); // resolved, timer resets instead of freezing
+  });
+
+  it('immediately resolves a sniffer placed while the countdown is genuinely frozen at 0', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+
+    store.reveal(3); // starts playing, mine at 0; cells 0, 1, 2 stay hidden
+
+    // Flag every remaining square so the autosniffer has no hidden cell to
+    // pick - the only way the countdown can genuinely stay frozen at 0.
+    store.toggleFlag(0);
+    store.toggleFlag(1);
+    store.toggleFlag(2);
+
+    vi.advanceTimersByTime(10000);
+    expect(store.secondsUntilSniff()).toBe(0); // frozen: nothing hidden to auto-sniff
+
+    // Unflag cell 2 and place a sniffer on it while the countdown sits at 0.
+    store.toggleFlag(2);
+    store.toggleSniffer(2);
+
+    // Immediately resolved (cell 2 is safe -> revealed) & timer resets to 10.
+    expect(store.cells()[2].state).toBe('revealed');
     expect(store.secondsUntilSniff()).toBe(10);
   });
 
@@ -269,15 +300,21 @@ describe('GameStore', () => {
   it('waits at 0 for a chord to become available, then resolves it on the next tick', () => {
     vi.useFakeTimers();
     const store = createStore();
-    store.newGame({ rows: 3, cols: 3, mines: 1 });
+    // Two mines so the autosniffer flagging the first one (at the 10s mark,
+    // alongside the auto-chord tick) doesn't by itself complete the chord.
+    store.newGame({ rows: 3, cols: 3, mines: 2 });
 
-    store.reveal(4); // mine forced onto index 0; no flags yet, no chord available
+    store.reveal(4); // mines forced onto indexes 0 & 1; cell 4 shows "2"
 
     vi.advanceTimersByTime(10000);
+    // The autosniffer has nothing marked, so it auto-flags a random hidden
+    // cell - deterministically index 0 (the first mine) - leaving cell 4's
+    // flag count at 1, still short of its "2", so no chord is available yet.
+    expect(store.cells()[0].state).toBe('flagged');
     expect(store.secondsUntilAutoChord()).toBe(0); // armed, waiting
     expect(store.status()).toBe('playing');
 
-    store.toggleFlag(0); // flag the mine - a chord at cell 4 is now available
+    store.toggleFlag(1); // flag the second mine - a chord at cell 4 is now available
 
     vi.advanceTimersByTime(1000); // next tick picks it up
     expect(store.status()).toBe('won');
