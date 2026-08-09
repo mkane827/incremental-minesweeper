@@ -1,0 +1,161 @@
+<h2 matDialogTitle>Prestige</h2>
+
+<mat-dialog-content class="content">
+  <p class="balance">
+    <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+    <span>{{ prestige.points() }} prestige points</span>
+  </p>
+
+  <div class="progress">
+    <p class="progress-detail">Lifetime mines earned: {{ lifetimeMines() }}</p>
+    @if (prestige.canPrestige()) {
+      <p class="progress-detail is-ready">
+        Prestiging now grants +{{ prestige.availableGain() }} point{{
+          prestige.availableGain() === 1 ? '' : 's'
+        }}
+      </p>
+    } @else {
+      <p class="progress-detail">
+        Next point at {{ prestige.lifetimeMinesForNextPoint() }} lifetime mines
+      </p>
+    }
+  </div>
+
+  <div class="prestige-action">
+    <p class="warning">
+      Prestiging resets your current mine balance and every mine-bought upgrade level and unlock
+      back to the start of a fresh run. Anything unlocked below with prestige points stays active
+      through every future prestige.
+    </p>
+    @if (confirming()) {
+      <div class="confirm-row">
+        <button matButton type="button" (click)="cancelConfirm()">Cancel</button>
+        <button matButton="filled" type="button" (click)="requestPrestige()">
+          Confirm reset
+        </button>
+      </div>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canPrestige()"
+        (click)="requestPrestige()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        Prestige (+{{ prestige.availableGain() }})
+      </button>
+    }
+  </div>
+
+  <h3 class="section-title">Permanent unlocks</h3>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Permanent sniffer (🐶)</span>
+      <span class="upgrade-detail">The sniffer stays unlocked through every future prestige</span>
+    </div>
+    @if (prestige.permanentSnifferUnlocked()) {
+      <button matButton="filled" type="button" disabled>OWNED</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canAffordPermanentSniffer()"
+        (click)="buyPermanentSniffer()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        {{ prestige.permanentSnifferCost }}
+      </button>
+    }
+  </div>
+
+  @if (prestige.permanentSnifferUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Permanent autosniffer</span>
+        <span class="upgrade-detail">
+          Autosniffer stays unlocked through every future prestige
+        </span>
+      </div>
+      @if (prestige.permanentAutoSnifferUnlocked()) {
+        <button matButton="filled" type="button" disabled>OWNED</button>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!prestige.canAffordPermanentAutoSniffer()"
+          (click)="buyPermanentAutoSniffer()"
+        >
+          <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+          {{ prestige.permanentAutoSnifferCost }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Permanent auto-flag (🚩)</span>
+      <span class="upgrade-detail">Auto-flag stays unlocked through every future prestige</span>
+    </div>
+    @if (prestige.permanentAutoFlagUnlocked()) {
+      <button matButton="filled" type="button" disabled>OWNED</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canAffordPermanentAutoFlag()"
+        (click)="buyPermanentAutoFlag()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        {{ prestige.permanentAutoFlagCost }}
+      </button>
+    }
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Permanent auto-chord (🤖)</span>
+      <span class="upgrade-detail">Auto-chord stays unlocked through every future prestige</span>
+    </div>
+    @if (prestige.permanentAutoChordUnlocked()) {
+      <button matButton="filled" type="button" disabled>OWNED</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canAffordPermanentAutoChord()"
+        (click)="buyPermanentAutoChord()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        {{ prestige.permanentAutoChordCost }}
+      </button>
+    }
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
+      <span class="upgrade-name">Permanent auto-restart (🔁)</span>
+      <span class="upgrade-detail">
+        Auto-restart stays unlocked through every future prestige
+      </span>
+    </div>
+    @if (prestige.permanentAutoRestartUnlocked()) {
+      <button matButton="filled" type="button" disabled>OWNED</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canAffordPermanentAutoRestart()"
+        (click)="buyPermanentAutoRestart()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        {{ prestige.permanentAutoRestartCost }}
+      </button>
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button matButton (click)="close()">Close</button>
+</mat-dialog-actions>

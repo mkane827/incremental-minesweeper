@@ -2,6 +2,7 @@ import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CurrencyStore } from './currency-store';
 import { GameStore } from './game-store';
+import { PrestigeStore } from './prestige-store';
 import { UpgradesStore } from './upgrades-store';
 
 function createStore(): GameStore {
@@ -534,5 +535,24 @@ describe('GameStore', () => {
 
     expect(store.status()).toBe('idle');
     expect(store.cells().every((cell) => cell.state === 'hidden')).toBe(true);
+  });
+
+  it('runs a mechanic that was permanently unlocked with prestige points, without ever buying its mine unlock', () => {
+    const prestige = TestBed.inject(PrestigeStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(2000); // 1 prestige point
+    prestige.claimAvailableGain();
+    prestige.buyPermanentAutoRestart();
+
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 3, mines: 1 });
+
+    store.reveal(0); // safe, mine forced onto index 1
+    store.reveal(2); // clears the board -> won
+    expect(store.status()).toBe('won');
+
+    vi.advanceTimersByTime(10000);
+
+    expect(store.status()).toBe('idle'); // auto-restart fired despite no mine-bought unlock
   });
 });

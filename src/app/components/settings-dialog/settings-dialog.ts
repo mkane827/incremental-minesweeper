@@ -6,6 +6,7 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
+import { CELL_SIZE_OPTIONS, DisplayStore } from '../../services/display-store';
 import { ClickAction, KeybindingsStore, LETTERS } from '../../services/keybindings-store';
 
 @Component({
@@ -17,7 +18,11 @@ import { ClickAction, KeybindingsStore, LETTERS } from '../../services/keybindin
 })
 export class SettingsDialog {
   private readonly keybindings = inject(KeybindingsStore);
+  private readonly display = inject(DisplayStore);
   private readonly dialogRef = inject(MatDialogRef<SettingsDialog>);
+
+  protected readonly cellSizeOptions = CELL_SIZE_OPTIONS;
+  protected readonly cellSize = this.display.cellSize;
 
   protected readonly revealKey = this.keybindings.revealKey;
   protected readonly flagKey = this.keybindings.flagKey;
@@ -60,6 +65,10 @@ export class SettingsDialog {
 
   protected onSecondaryClickChange(value: ClickAction): void {
     this.keybindings.setSecondaryClickAction(value);
+  }
+
+  protected onCellSizeChange(value: string): void {
+    this.display.setCellSize(Number(value));
   }
 
   protected close(): void {

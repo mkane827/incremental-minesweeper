@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { CurrencyStore } from './currency-store';
+import { PrestigeStore } from './prestige-store';
 
 const STORAGE_KEY = 'ms-upgrades';
 
@@ -110,6 +111,7 @@ interface LoadedUpgrades {
 @Injectable({ providedIn: 'root' })
 export class UpgradesStore {
   private readonly currency = inject(CurrencyStore);
+  private readonly prestige = inject(PrestigeStore);
 
   private readonly stored = this.load();
   private readonly _mineCapacityLevel = signal(this.stored.mineCapacity);
@@ -132,11 +134,22 @@ export class UpgradesStore {
   readonly autoChordSpeedLevel = this._autoChordSpeedLevel.asReadonly();
   readonly autoRestartSpeedLevel = this._autoRestartSpeedLevel.asReadonly();
   readonly autoFlagSpeedLevel = this._autoFlagSpeedLevel.asReadonly();
-  readonly snifferUnlocked = this._snifferUnlocked.asReadonly();
-  readonly autoFlagUnlocked = this._autoFlagUnlocked.asReadonly();
-  readonly autoChordUnlocked = this._autoChordUnlocked.asReadonly();
-  readonly autoRestartUnlocked = this._autoRestartUnlocked.asReadonly();
-  readonly autoSnifferUnlocked = this._autoSnifferUnlocked.asReadonly();
+  /** True once bought with mines OR permanently unlocked with prestige points - either way, the mechanic is live. */
+  readonly snifferUnlocked = computed(
+    () => this._snifferUnlocked() || this.prestige.permanentSnifferUnlocked(),
+  );
+  readonly autoFlagUnlocked = computed(
+    () => this._autoFlagUnlocked() || this.prestige.permanentAutoFlagUnlocked(),
+  );
+  readonly autoChordUnlocked = computed(
+    () => this._autoChordUnlocked() || this.prestige.permanentAutoChordUnlocked(),
+  );
+  readonly autoRestartUnlocked = computed(
+    () => this._autoRestartUnlocked() || this.prestige.permanentAutoRestartUnlocked(),
+  );
+  readonly autoSnifferUnlocked = computed(
+    () => this._autoSnifferUnlocked() || this.prestige.permanentAutoSnifferUnlocked(),
+  );
 
   readonly snifferUnlockCost = SNIFFER_UNLOCK_COST;
   readonly autoFlagUnlockCost = AUTO_FLAG_UNLOCK_COST;
@@ -204,46 +217,46 @@ export class UpgradesStore {
   readonly canAffordBoardCols = computed(() => this.currency.mines() >= this.boardColsCost());
   readonly canAffordSnifferSpeed = computed(
     () =>
-      this._snifferUnlocked() &&
+      this.snifferUnlocked() &&
       !this.isSnifferSpeedMaxed() &&
       this.currency.mines() >= this.snifferSpeedCost(),
   );
   readonly canAffordAutoChordSpeed = computed(
     () =>
-      this._autoChordUnlocked() &&
+      this.autoChordUnlocked() &&
       !this.isAutoChordSpeedMaxed() &&
       this.currency.mines() >= this.autoChordSpeedCost(),
   );
   readonly canAffordAutoRestartSpeed = computed(
     () =>
-      this._autoRestartUnlocked() &&
+      this.autoRestartUnlocked() &&
       !this.isAutoRestartSpeedMaxed() &&
       this.currency.mines() >= this.autoRestartSpeedCost(),
   );
   readonly canAffordAutoFlagSpeed = computed(
     () =>
-      this._autoFlagUnlocked() &&
+      this.autoFlagUnlocked() &&
       !this.isAutoFlagSpeedMaxed() &&
       this.currency.mines() >= this.autoFlagSpeedCost(),
   );
 
   readonly canAffordSnifferUnlock = computed(
-    () => !this._snifferUnlocked() && this.currency.mines() >= SNIFFER_UNLOCK_COST,
+    () => !this.snifferUnlocked() && this.currency.mines() >= SNIFFER_UNLOCK_COST,
   );
   readonly canAffordAutoFlagUnlock = computed(
-    () => !this._autoFlagUnlocked() && this.currency.mines() >= AUTO_FLAG_UNLOCK_COST,
+    () => !this.autoFlagUnlocked() && this.currency.mines() >= AUTO_FLAG_UNLOCK_COST,
   );
   readonly canAffordAutoChordUnlock = computed(
-    () => !this._autoChordUnlocked() && this.currency.mines() >= AUTO_CHORD_UNLOCK_COST,
+    () => !this.autoChordUnlocked() && this.currency.mines() >= AUTO_CHORD_UNLOCK_COST,
   );
   readonly canAffordAutoRestartUnlock = computed(
-    () => !this._autoRestartUnlocked() && this.currency.mines() >= AUTO_RESTART_UNLOCK_COST,
+    () => !this.autoRestartUnlocked() && this.currency.mines() >= AUTO_RESTART_UNLOCK_COST,
   );
   /** Only purchasable once the base sniffer is already unlocked. */
   readonly canAffordAutoSnifferUnlock = computed(
     () =>
-      this._snifferUnlocked() &&
-      !this._autoSnifferUnlocked() &&
+      this.snifferUnlocked() &&
+      !this.autoSnifferUnlocked() &&
       this.currency.mines() >= AUTO_SNIFFER_UNLOCK_COST,
   );
 
@@ -277,7 +290,7 @@ export class UpgradesStore {
   /** Spends the current cost and speeds up the sniffer timer, if unlocked and affordable. */
   buySnifferSpeed(): void {
     if (
-      !this._snifferUnlocked() ||
+      !this.snifferUnlocked() ||
       this.isSnifferSpeedMaxed() ||
       !this.currency.spend(this.snifferSpeedCost())
     ) {
@@ -290,7 +303,7 @@ export class UpgradesStore {
   /** Spends the current cost and speeds up the auto-chord timer, if unlocked and affordable. */
   buyAutoChordSpeed(): void {
     if (
-      !this._autoChordUnlocked() ||
+      !this.autoChordUnlocked() ||
       this.isAutoChordSpeedMaxed() ||
       !this.currency.spend(this.autoChordSpeedCost())
     ) {
@@ -303,7 +316,7 @@ export class UpgradesStore {
   /** Spends the current cost and speeds up the auto-restart timer, if unlocked and affordable. */
   buyAutoRestartSpeed(): void {
     if (
-      !this._autoRestartUnlocked() ||
+      !this.autoRestartUnlocked() ||
       this.isAutoRestartSpeedMaxed() ||
       !this.currency.spend(this.autoRestartSpeedCost())
     ) {
@@ -316,7 +329,7 @@ export class UpgradesStore {
   /** Spends the current cost and speeds up the auto-flag timer, if unlocked and affordable. */
   buyAutoFlagSpeed(): void {
     if (
-      !this._autoFlagUnlocked() ||
+      !this.autoFlagUnlocked() ||
       this.isAutoFlagSpeedMaxed() ||
       !this.currency.spend(this.autoFlagSpeedCost())
     ) {
@@ -328,7 +341,7 @@ export class UpgradesStore {
 
   /** Unlocks the sniffer mechanic itself, if affordable. */
   buySnifferUnlock(): void {
-    if (this._snifferUnlocked() || !this.currency.spend(SNIFFER_UNLOCK_COST)) {
+    if (this.snifferUnlocked() || !this.currency.spend(SNIFFER_UNLOCK_COST)) {
       return;
     }
     this._snifferUnlocked.set(true);
@@ -337,7 +350,7 @@ export class UpgradesStore {
 
   /** Unlocks the auto-flag mechanic itself, if affordable. */
   buyAutoFlagUnlock(): void {
-    if (this._autoFlagUnlocked() || !this.currency.spend(AUTO_FLAG_UNLOCK_COST)) {
+    if (this.autoFlagUnlocked() || !this.currency.spend(AUTO_FLAG_UNLOCK_COST)) {
       return;
     }
     this._autoFlagUnlocked.set(true);
@@ -346,7 +359,7 @@ export class UpgradesStore {
 
   /** Unlocks the auto-chord mechanic itself, if affordable. */
   buyAutoChordUnlock(): void {
-    if (this._autoChordUnlocked() || !this.currency.spend(AUTO_CHORD_UNLOCK_COST)) {
+    if (this.autoChordUnlocked() || !this.currency.spend(AUTO_CHORD_UNLOCK_COST)) {
       return;
     }
     this._autoChordUnlocked.set(true);
@@ -355,7 +368,7 @@ export class UpgradesStore {
 
   /** Unlocks the auto-restart mechanic itself, if affordable. */
   buyAutoRestartUnlock(): void {
-    if (this._autoRestartUnlocked() || !this.currency.spend(AUTO_RESTART_UNLOCK_COST)) {
+    if (this.autoRestartUnlocked() || !this.currency.spend(AUTO_RESTART_UNLOCK_COST)) {
       return;
     }
     this._autoRestartUnlocked.set(true);
@@ -365,13 +378,35 @@ export class UpgradesStore {
   /** Unlocks the sniffer's random-hidden-square fallback, if the sniffer is unlocked and affordable. */
   buyAutoSnifferUnlock(): void {
     if (
-      !this._snifferUnlocked() ||
-      this._autoSnifferUnlocked() ||
+      !this.snifferUnlocked() ||
+      this.autoSnifferUnlocked() ||
       !this.currency.spend(AUTO_SNIFFER_UNLOCK_COST)
     ) {
       return;
     }
     this._autoSnifferUnlocked.set(true);
+    this.persist();
+  }
+
+  /**
+   * Prestige reset: zeroes every mine-bought level and unlock. Anything
+   * unlocked permanently with prestige points stays active regardless -
+   * `snifferUnlocked` etc. OR in `PrestigeStore`'s permanent flags, which
+   * this never touches.
+   */
+  resetForPrestige(): void {
+    this._mineCapacityLevel.set(0);
+    this._boardRowsLevel.set(0);
+    this._boardColsLevel.set(0);
+    this._snifferSpeedLevel.set(0);
+    this._autoChordSpeedLevel.set(0);
+    this._autoRestartSpeedLevel.set(0);
+    this._autoFlagSpeedLevel.set(0);
+    this._snifferUnlocked.set(false);
+    this._autoFlagUnlocked.set(false);
+    this._autoChordUnlocked.set(false);
+    this._autoRestartUnlocked.set(false);
+    this._autoSnifferUnlocked.set(false);
     this.persist();
   }
 

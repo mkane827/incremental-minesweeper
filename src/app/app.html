@@ -6,6 +6,19 @@
     <mat-icon aria-hidden="true">diamond</mat-icon>
     <span>{{ currency.mines() }}</span>
   </div>
+  <div class="currency" aria-label="Prestige points">
+    <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+    <span>{{ prestige.points() }}</span>
+  </div>
+  <button
+    matIconButton
+    type="button"
+    matTooltip="Prestige"
+    aria-label="Open the prestige menu"
+    (click)="openPrestige()"
+  >
+    <mat-icon>auto_awesome</mat-icon>
+  </button>
   <button
     matIconButton
     type="button"
@@ -29,7 +42,10 @@
 <main class="page">
   <div class="game-container">
     <ms-game-header />
-    <ms-board />
+
+    <div class="board-scroll">
+      <ms-board />
+    </div>
 
     @if (banner(); as info) {
       <button

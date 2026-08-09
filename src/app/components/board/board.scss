@@ -1,6 +1,5 @@
 :host {
   display: block;
-  --ms-cell-size: 36px;
 }
 
 .board {
@@ -12,14 +11,4 @@
   inline-size: fit-content;
   margin-inline: auto;
   touch-action: manipulation;
-}
-
-@media (max-width: 520px) {
-  :host {
-    --ms-cell-size: 30px;
-  }
-
-  .board {
-    gap: 2px;
-  }
 }

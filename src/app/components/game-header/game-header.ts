@@ -3,6 +3,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { GameStore } from '../../services/game-store';
+import { UpgradesStore } from '../../services/upgrades-store';
 
 // Elements where the space bar already means something else (activate a
 // button, flag a cell, type in a field) and shouldn't also start a new game.
@@ -20,6 +21,8 @@ const SPACE_EXEMPT_TAGS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A']
 })
 export class GameHeader {
   private readonly store = inject(GameStore);
+
+  protected readonly upgrades = inject(UpgradesStore);
 
   protected readonly minesRemaining = this.store.minesRemaining;
   protected readonly status = this.store.status;

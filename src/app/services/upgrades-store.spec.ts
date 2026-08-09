@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { CurrencyStore } from './currency-store';
+import { PrestigeStore } from './prestige-store';
 import {
   BASE_COLS,
   BASE_MAX_MINES,
@@ -458,6 +459,60 @@ describe('UpgradesStore', () => {
       const store = createStore();
 
       expect(store.autoSnifferUnlocked()).toBe(false);
+    });
+  });
+
+  describe('prestige integration', () => {
+    it('resets every mine-bought level and unlock', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(1000);
+      store.buyMineCapacity();
+      store.buyBoardRows();
+      store.buyBoardCols();
+      store.buySnifferUnlock();
+      store.buySnifferSpeed();
+
+      store.resetForPrestige();
+
+      expect(store.mineCapacityLevel()).toBe(0);
+      expect(store.boardRowsLevel()).toBe(0);
+      expect(store.boardColsLevel()).toBe(0);
+      expect(store.snifferSpeedLevel()).toBe(0);
+      expect(store.snifferUnlocked()).toBe(false);
+      expect(store.maxMines()).toBe(BASE_MAX_MINES);
+      expect(store.boardRows()).toBe(BASE_ROWS);
+      expect(store.boardCols()).toBe(BASE_COLS);
+    });
+
+    it('keeps a permanently (prestige-bought) unlocked mechanic active through resetForPrestige', () => {
+      const store = createStore();
+      const prestige = TestBed.inject(PrestigeStore);
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(2000); // 1 prestige point
+      prestige.claimAvailableGain();
+      prestige.buyPermanentSniffer();
+
+      expect(store.snifferUnlocked()).toBe(true); // active without ever buying the mine unlock
+
+      store.resetForPrestige();
+
+      expect(store.snifferUnlocked()).toBe(true); // survives the reset
+    });
+
+    it('lets a permanently-unlocked mechanic buy its speed track without the mine unlock', () => {
+      const store = createStore();
+      const prestige = TestBed.inject(PrestigeStore);
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(2000);
+      prestige.claimAvailableGain();
+      prestige.buyPermanentAutoRestart();
+
+      currency.earn(20);
+      expect(store.canAffordAutoRestartSpeed()).toBe(true);
+      store.buyAutoRestartSpeed();
+
+      expect(store.autoRestartSpeedLevel()).toBe(1);
     });
   });
 });

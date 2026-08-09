@@ -1,0 +1,83 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-inline-size: 280px;
+}
+
+.balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-detail {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.progress-detail.is-ready {
+  color: var(--mat-sys-primary);
+  font-weight: 600;
+}
+
+.prestige-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.warning {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.confirm-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.section-title {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.upgrade {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.upgrade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upgrade-name {
+  font: var(--mat-sys-title-small);
+}
+
+.upgrade-detail {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}

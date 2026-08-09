@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { isChordReady } from '../../services/board.util';
 import { CellComponent } from '../cell/cell';
+import { DisplayStore } from '../../services/display-store';
 import { GameStore } from '../../services/game-store';
 
 @Component({
@@ -9,12 +10,22 @@ import { GameStore } from '../../services/game-store';
   templateUrl: './board.html',
   styleUrl: './board.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[style.--ms-cell-size]': 'cellSizeStyle()',
+  },
 })
 export class Board {
   private readonly store = inject(GameStore);
+  private readonly display = inject(DisplayStore);
 
   protected readonly cells = this.store.cells;
   protected readonly locked = this.store.isOver;
+
+  /**
+   * Fixed regardless of board size - growing rows/cols never shrinks cells
+   * to fit; the board just needs more scrolling instead.
+   */
+  protected readonly cellSizeStyle = computed(() => `${this.display.cellSize()}px`);
 
   protected readonly gridTemplate = computed(
     () => `repeat(${this.store.config().cols}, var(--ms-cell-size))`,

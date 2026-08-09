@@ -12,7 +12,7 @@ An incremental Minesweeper game built with Angular 21, Angular Material, Signals
 ## Architecture & Technology Stack
 
 - **Framework**: Angular 21 with **zoneless change detection** (`provideZonelessChangeDetection()`). No `zone.js` dependency.
-- **State Management**: Angular **Signals** (`signal`, `computed`, `effect`). Single-source-of-truth stores (`GameStore`, `CurrencyStore`, `UpgradesStore`, `KeybindingsStore`).
+- **State Management**: Angular **Signals** (`signal`, `computed`, `effect`). Single-source-of-truth stores (`GameStore`, `CurrencyStore`, `UpgradesStore`, `PrestigeStore`, `KeybindingsStore`, `DisplayStore`).
 - **Component Strategy**: `ChangeDetectionStrategy.OnPush` across all components. Signal inputs (`input.required<T>()`) and outputs.
 - **Styling**: SCSS + Angular Material. Plain SCSS design (no Tailwind, no RxJS in app logic).
 - **Unit Testing**: Vitest integrated via `@angular/build` (`npx ng test --watch=false`). Mostly service-level specs; `game-header.spec.ts` is the first component-level spec (uses `TestBed.createComponent`).
@@ -26,15 +26,18 @@ src/app/
 ├── services/
 │   ├── board.util.ts         # Pure functions for board logic (mines, flood fill, reveal, chording, auto-flag, chord-ready check)
 │   ├── game-store.ts         # GameStore signal store for round lifecycle & the four wall-clock-deadline timers
-│   ├── currency-store.ts     # CurrencyStore for earned/spent mines
-│   ├── upgrades-store.ts     # UpgradesStore for persistent meta-progression (mine capacity w/ density cap, board rows/cols, four timer speeds)
-│   └── keybindings-store.ts  # KeybindingsStore for configurable keyboard shortcuts & mouse click actions
+│   ├── currency-store.ts     # CurrencyStore for spendable mines + lifetime mines earned (never resets)
+│   ├── upgrades-store.ts     # UpgradesStore for run-scoped meta-progression (mine capacity w/ density cap, board rows/cols, four timer speeds); resettable by prestige
+│   ├── prestige-store.ts     # PrestigeStore for permanent meta-progression above UpgradesStore, bought with prestige points
+│   ├── keybindings-store.ts  # KeybindingsStore for configurable keyboard shortcuts & mouse click actions
+│   └── display-store.ts      # DisplayStore for the player-chosen cell size (fixed regardless of board size)
 └── components/
     ├── board/                # Grid component; also computes which revealed numbers are chord-ready
     ├── cell/                 # Individual square component (OnPush)
-    ├── game-header/          # Mine counter, sniffer/auto-flag/auto-chord/auto-restart countdowns, face/reset, timer
+    ├── game-header/          # Mine counter, sniffer/auto-flag/auto-chord/auto-restart countdowns (each hidden until unlocked), face/reset, timer
     ├── settings-dialog/      # Keyboard shortcut & mouse-action settings dialog
-    └── upgrades-dialog/      # Shop dialog for mine/board/speed upgrades, with a live mine-density readout
+    ├── upgrades-dialog/      # Shop dialog for mine/board/speed upgrades, with a live mine-density readout
+    └── prestige-dialog/      # Prestige action + shop for permanent (prestige-point) unlocks
 ```
 
 ## Game Mechanics
@@ -49,9 +52,11 @@ src/app/
 - **Sniffer** (🐶): a placeable marker on a hidden cell. When its timer fires, one random *marked* sniffer auto-resolves if any are placed, otherwise the autosniffer kicks in (if unlocked) and resolves a random *hidden* square instead (flag if a mine, reveal if safe) — either way the timer resets. Resolving a mine always flags it rather than revealing it, so the sniffer (manual or auto) can never itself lose the game. Placing a sniffer once the deadline has already passed resolves it immediately instead of waiting for the next tick.
 - **Auto-chord** (🤖, `board.util.ts#findAvailableChord`): when its timer fires, looks for a revealed number whose flagged-neighbour count already matches and that still has a hidden neighbour worth revealing, and chords it. If none exists yet, stays armed and retries every subsequent tick until one appears (often fed by auto-flag resolving just before it, since auto-flag runs first in the same tick).
 - **Auto-restart**: once the round ends (won/lost), its own timer starts fresh from that exact moment (not from `newGame()` time) and calls `newGame()` when it elapses, looping the whole cycle without any input.
-- **Automation unlocks** (`UpgradesStore`): sniffer, auto-flag, auto-chord, and auto-restart are each inert until a one-time "unlock" purchase is made (100/150/250/100 mines respectively) — until then, their timer deadlines still visibly count down in the header, but nothing fires when they hit zero, and manually placing a sniffer (`toggleSniffer`) is blocked pre-unlock too. Each mechanic's speed-upgrade track is also gated on its unlock (`canAffordXSpeed`/`buyXSpeed` all check the unlock flag). Auto-sniffer (the random-hidden-cell fallback) is a further, pricier unlock (300 mines) layered on top of the base sniffer unlock — `buyAutoSnifferUnlock` refuses to run and `load()` refuses to trust a persisted `autoSnifferUnlocked: true` unless `snifferUnlocked` is also true, so it can never be active without the base sniffer.
+- **Automation unlocks** (`UpgradesStore`): sniffer, auto-flag, auto-chord, and auto-restart are each inert until a one-time "unlock" purchase is made (100/150/250/100 mines respectively) — until then, nothing fires when their deadline hits zero, manually placing a sniffer (`toggleSniffer`) is blocked, and `game-header.html` hides that mechanic's readout entirely (`@if (upgrades.xUnlocked())`) rather than showing a dead countdown. Each mechanic's speed-upgrade track is also gated on its unlock (`canAffordXSpeed`/`buyXSpeed` all check the unlock flag). Auto-sniffer (the random-hidden-cell fallback) is a further, pricier unlock (300 mines) layered on top of the base sniffer unlock — `buyAutoSnifferUnlock` refuses to run and `load()` refuses to trust a persisted `autoSnifferUnlocked: true` unless `snifferUnlocked` is also true, so it can never be active without the base sniffer.
+- **Prestige** (`PrestigeStore`, permanent, persisted separately from `UpgradesStore`): `CurrencyStore` tracks `lifetimeMines` alongside the spendable `mines` balance - lifetime mines never decrease, not even on a prestige reset, so prestige gain is always judged against the same ever-growing total. `prestigePointsForLifetimeMines(lifetimeMines) = floor(sqrt(lifetimeMines / 2000))` sets how many points a given lifetime total is worth; `PrestigeStore#availableGain` is that total minus points already claimed (`_lifetimePointsClaimed`), and `claimAvailableGain()` banks the difference. The `PrestigeDialog`'s "Prestige" action (two-step confirm) calls `prestige.claimAvailableGain()`, then `currency.resetSpendable()` (zeroes spendable mines only) and `upgrades.resetForPrestige()` (zeroes every mine-bought level *and* unlock), then forces `game.newGame()`. Prestige points buy permanent versions of the four automation unlocks plus auto-sniffer (1/2/3/1/3 points; auto-sniffer gated on the permanent sniffer, same pattern as the mine-bought version) - `UpgradesStore`'s `xUnlocked` signals are `computed(() => this._xUnlocked() || this.prestige.permanentXUnlocked())`, so a permanent unlock survives `resetForPrestige()` and even lets that mechanic's speed track be bought with mines before its mine-based unlock is ever purchased. `UpgradesStore` depends on `PrestigeStore` (one-way, to read the permanent flags) - `PrestigeStore` itself has no dependency on `UpgradesStore`, and the reset orchestration lives in `PrestigeDialog` instead, specifically to avoid a circular provider dependency.
 - **Chord-ready cursor**: `board.util.ts#isChordReady` (used by `board.ts`'s `chordReady` computed `Set`) marks any revealed number whose flag count already matches its adjacent-mine count; those cells get `cursor: pointer` (`cell.scss` `.is-chord-ready`) instead of the default cursor other revealed cells use.
 - **Keybindings** (`KeybindingsStore`): reveal/flag/sniffer are independently rebindable single letters (default `z`/`x`/`c`, no overlaps allowed), and left/right mouse click are independently mappable to reveal, flag, or sniff. Hovering a cell focuses it so letter shortcuts act on the hovered square; space bar starts a new game except when a cell, dialog, or form control would otherwise handle it (always allowed once the round is won/lost).
+- **Cell size** (`DisplayStore`, persisted): a player-chosen pixel size (Small/Medium/Large/Extra large) applied via a `--ms-cell-size` CSS custom property that `Board` sets as a host binding, read by `cell.scss` for every cell dimension. Deliberately fixed regardless of board size or viewport - `board.ts`'s `gridTemplate` always renders `config().cols` tracks at that one size, so growing rows/cols (or a narrow viewport) never shrinks cells to fit. Instead `app.html` wraps `<ms-board />` in a `.board-scroll` container (`overflow-x: auto`) so an oversized board scrolls horizontally under the always-visible header/toolbar rather than squeezing cells smaller.
 
 ## Key Guidelines & Conventions
 

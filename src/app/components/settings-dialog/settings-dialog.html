@@ -1,7 +1,20 @@
 <h2 matDialogTitle>Controls & Shortcuts</h2>
 
 <mat-dialog-content class="content">
-  <h3>Keyboard shortcuts</h3>
+  <h3>Display</h3>
+
+  <label class="row">
+    <span>Cell size</span>
+    <select class="key-select" (change)="onCellSizeChange($any($event.target).value)">
+      @for (option of cellSizeOptions; track option.value) {
+        <option [value]="option.value" [selected]="option.value === cellSize()">
+          {{ option.label }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <h3 class="section-title">Keyboard shortcuts</h3>
 
   <label class="row">
     <span>Reveal</span>

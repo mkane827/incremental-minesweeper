@@ -6,11 +6,13 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { Board } from './components/board/board';
 import { GameHeader } from './components/game-header/game-header';
+import { PrestigeDialog } from './components/prestige-dialog/prestige-dialog';
 import { SettingsDialog } from './components/settings-dialog/settings-dialog';
 import { UpgradesDialog } from './components/upgrades-dialog/upgrades-dialog';
 import { CurrencyStore } from './services/currency-store';
 import { GameStore } from './services/game-store';
 import { KeybindingsStore } from './services/keybindings-store';
+import { PrestigeStore } from './services/prestige-store';
 
 @Component({
   selector: 'ms-root',
@@ -32,6 +34,7 @@ export class App {
   private readonly keybindings = inject(KeybindingsStore);
 
   protected readonly currency = inject(CurrencyStore);
+  protected readonly prestige = inject(PrestigeStore);
   protected readonly status = this.store.status;
 
   protected readonly keyHint = computed(
@@ -47,6 +50,10 @@ export class App {
 
   protected openUpgrades(): void {
     this.dialog.open(UpgradesDialog);
+  }
+
+  protected openPrestige(): void {
+    this.dialog.open(PrestigeDialog);
   }
 
   protected reset(): void {
