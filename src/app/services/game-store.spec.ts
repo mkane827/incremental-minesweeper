@@ -1,6 +1,8 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CurrencyStore } from './currency-store';
 import { GameStore } from './game-store';
+import { UpgradesStore } from './upgrades-store';
 
 function createStore(): GameStore {
   return TestBed.inject(GameStore);
@@ -13,6 +15,10 @@ describe('GameStore', () => {
     // Fisher-Yates with random() always 0 never swaps, so candidates keep their
     // natural ascending order and mine placement becomes fully deterministic.
     vi.spyOn(Math, 'random').mockReturnValue(0);
+    // Timers now run continuously from the moment GameStore is constructed
+    // (not just once "playing" starts), so every test needs fake timers to
+    // avoid a real 50ms background interval ticking during the test run.
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
@@ -45,9 +51,49 @@ describe('GameStore', () => {
     );
     const store = createStore();
 
-    // 10s base - 4 levels = 6s, 10s base - 2 levels = 8s
-    expect(store.secondsUntilSniff()).toBe(6);
+    // level 4 -> 6500ms -> ceil 7s; level 2 -> 8000ms -> ceil 8s
+    expect(store.secondsUntilSniff()).toBe(7);
     expect(store.secondsUntilAutoChord()).toBe(8);
+  });
+
+  it('immediately applies an upgrade bought while idle', () => {
+    const store = createStore();
+    const appRef = TestBed.inject(ApplicationRef);
+    // Every effect fires once automatically right after creation, independent
+    // of any real change; let that settle first, same as real app startup,
+    // before making a genuine purchase.
+    appRef.tick();
+
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(15);
+
+    expect(store.config().rows).toBe(8);
+
+    upgrades.buyBoardRows();
+    appRef.tick(); // flush the reactive apply-while-idle effect
+
+    expect(store.status()).toBe('idle');
+    expect(store.config().rows).toBe(9);
+    expect(store.cells()).toHaveLength(9 * 8);
+  });
+
+  it('does not retroactively change an in-progress board when an upgrade is bought', () => {
+    const store = createStore();
+    const appRef = TestBed.inject(ApplicationRef);
+    appRef.tick();
+
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+    store.reveal(4); // starts playing
+
+    currency.earn(15);
+    upgrades.buyBoardRows();
+    appRef.tick();
+
+    expect(store.status()).toBe('playing');
+    expect(store.config()).toEqual({ rows: 3, cols: 3, mines: 1 });
   });
 
   it('newGame resets to a chosen board size', () => {
@@ -175,7 +221,44 @@ describe('GameStore', () => {
     expect(store.cells()[1].state).toBe('flagged');
   });
 
-  it('awards currency equal to the board\'s mine count on a win', () => {
+  it('does not auto-flag a logically-deducible mine immediately after a reveal', () => {
+    const store = createStore();
+    // 1x6 board so cells 2-5 stay hidden and unrelated to the deduction below -
+    // otherwise clearing the board would trigger the separate win-time
+    // flagRemainingMines and mask what this test is actually checking.
+    store.newGame({ rows: 1, cols: 6, mines: 1 });
+
+    store.reveal(0); // mine forced onto index 1; cell 0's only neighbour is already narrowed to it
+
+    // Cell 0 is now logically satisfied (its one hidden neighbour must be the
+    // mine), but auto-flag only runs on its own timer, not inline after a move.
+    expect(store.status()).toBe('playing'); // not won - cells 2-5 are still hidden
+    expect(store.cells()[1].state).toBe('hidden');
+  });
+
+  it('flags a logically-deducible mine once the auto-flag timer elapses', () => {
+    // Speed up auto-flag past the sniffer's default interval so this test
+    // isolates auto-flag's own deduction from the sniffer's random pick,
+    // which would otherwise land on the same (only) hidden cell first.
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(20);
+    upgrades.buyAutoFlagSpeed(); // 10s -> 9s
+
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 6, mines: 1 });
+
+    store.reveal(0); // mine forced onto index 1; cell 0 is already logically satisfied
+    expect(store.cells()[1].state).toBe('hidden');
+
+    vi.advanceTimersByTime(9000); // auto-flag's interval elapses; sniffer's (10s) has not
+
+    expect(store.cells()[1].state).toBe('flagged');
+    expect(store.status()).toBe('playing'); // still not won - cells 2-5 remain hidden
+    expect(store.secondsUntilSniff()).toBeGreaterThan(0);
+  });
+
+  it("awards currency equal to the board's mine count on a win", () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
     store.newGame({ rows: 1, cols: 3, mines: 1 });
@@ -200,7 +283,6 @@ describe('GameStore', () => {
   });
 
   it('counts elapsed seconds while playing and stops once the game ends', () => {
-    vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -225,7 +307,6 @@ describe('GameStore', () => {
   });
 
   it('resolves a sniffer every 10 seconds while playing', () => {
-    vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -243,7 +324,6 @@ describe('GameStore', () => {
   });
 
   it('auto-sniffs a random hidden square when the timer hits zero with no sniffer marked', () => {
-    vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -259,7 +339,6 @@ describe('GameStore', () => {
   });
 
   it('immediately resolves a sniffer placed while the countdown is genuinely frozen at 0', () => {
-    vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -284,7 +363,6 @@ describe('GameStore', () => {
   });
 
   it('automatically chords an available square after 10 seconds', () => {
-    vi.useFakeTimers();
     const store = createStore();
     store.newGame({ rows: 3, cols: 3, mines: 1 });
 
@@ -298,7 +376,6 @@ describe('GameStore', () => {
   });
 
   it('waits at 0 for a chord to become available, then resolves it on the next tick', () => {
-    vi.useFakeTimers();
     const store = createStore();
     // Two mines so the autosniffer flagging the first one (at the 10s mark,
     // alongside the auto-chord tick) doesn't by itself complete the chord.
@@ -319,5 +396,57 @@ describe('GameStore', () => {
     vi.advanceTimersByTime(1000); // next tick picks it up
     expect(store.status()).toBe('won');
     expect(store.secondsUntilAutoChord()).toBe(10);
+  });
+
+  it('ticks the sniffer and auto-chord timers before any move is made', () => {
+    const store = createStore();
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+
+    expect(store.status()).toBe('idle');
+    expect(store.secondsUntilSniff()).toBe(10);
+
+    vi.advanceTimersByTime(5000);
+
+    expect(store.secondsUntilSniff()).toBe(5);
+    expect(store.status()).toBe('idle'); // nothing hidden-and-revealed yet, so no move has happened
+  });
+
+  it('lets the autosniffer make the very first move so nobody has to click anything', () => {
+    const store = createStore();
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+
+    vi.advanceTimersByTime(10000); // default sniffer interval, nothing marked
+
+    // Autosniffer picks index 0 (deterministic, see mock above), which is
+    // guaranteed safe since placing mines always avoids the triggering cell.
+    expect(store.status()).toBe('playing');
+    expect(store.cells()[0].state).toBe('revealed');
+    expect(store.cells()[1].isMine).toBe(true); // the forced mine, avoided
+  });
+
+  it('never auto-restarts while a game is still in progress', () => {
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+    store.reveal(3); // starts playing
+
+    vi.advanceTimersByTime(5000); // well under any resolution threshold
+
+    expect(store.status()).toBe('playing'); // no restart happened mid-round
+  });
+
+  it('automatically starts a new game once the auto-restart timer elapses', () => {
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 3, mines: 1 });
+
+    store.reveal(0); // safe, mine forced onto index 1
+    store.reveal(2); // clears the board -> won
+
+    expect(store.status()).toBe('won');
+    expect(store.secondsUntilAutoRestart()).toBe(10);
+
+    vi.advanceTimersByTime(10000);
+
+    expect(store.status()).toBe('idle');
+    expect(store.cells().every((cell) => cell.state === 'hidden')).toBe(true);
   });
 });

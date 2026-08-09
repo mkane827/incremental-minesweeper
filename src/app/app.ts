@@ -49,14 +49,18 @@ export class App {
     this.dialog.open(UpgradesDialog);
   }
 
+  protected reset(): void {
+    this.store.newGame();
+  }
+
   protected readonly banner = computed(() => {
     switch (this.status()) {
       case 'won':
-        return { icon: 'celebration', text: 'Board cleared. Nicely done.' };
+        return { icon: 'celebration', text: 'Board cleared. Nicely done. Click to play again.' };
       case 'lost':
         return {
           icon: 'sentiment_very_dissatisfied',
-          text: 'Boom. Hit the face to try again.',
+          text: 'Boom. Click to try again.',
         };
       default:
         return null;

@@ -32,10 +32,16 @@
     <ms-board />
 
     @if (banner(); as info) {
-      <p class="banner" [class.is-lost]="status() === 'lost'" role="status">
+      <button
+        type="button"
+        class="banner"
+        [class.is-lost]="status() === 'lost'"
+        aria-live="polite"
+        (click)="reset()"
+      >
         <mat-icon aria-hidden="true">{{ info.icon }}</mat-icon>
         <span>{{ info.text }}</span>
-      </p>
+      </button>
     }
   </div>
 

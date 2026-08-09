@@ -204,6 +204,17 @@ export function isCleared(cells: readonly Cell[]): boolean {
   return cells.every((cell) => cell.isMine || cell.state === 'revealed');
 }
 
+/** Whether clicking this revealed number would trigger a chord right now. */
+export function isChordReady(cells: readonly Cell[], index: number, config: BoardConfig): boolean {
+  const cell = cells[index];
+  if (!cell || cell.state !== 'revealed' || cell.adjacentMines === 0) {
+    return false;
+  }
+
+  const flagged = neighborIndexes(index, config).filter((n) => cells[n].state === 'flagged').length;
+  return flagged === cell.adjacentMines;
+}
+
 /**
  * Finds a revealed number whose flag count already matches, and that still
  * has at least one hidden neighbour left to reveal (i.e. chording it would

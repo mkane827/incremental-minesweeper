@@ -5,6 +5,7 @@ import {
   findAvailableChord,
   flagRemainingMines,
   floodReveal,
+  isChordReady,
   isCleared,
   neighborIndexes,
   placeMines,
@@ -254,6 +255,38 @@ describe('findAvailableChord', () => {
     const cells = createCells(config);
 
     expect(findAvailableChord(cells, config)).toBeUndefined();
+  });
+});
+
+describe('isChordReady', () => {
+  it('is true for a revealed number whose flag count matches, even with nothing left to reveal', () => {
+    // Unlike findAvailableChord, cursor readiness doesn't require progress -
+    // clicking still triggers chord(), it's just a harmless no-op.
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const };
+    });
+
+    expect(isChordReady(cells, 1, config)).toBe(true);
+  });
+
+  it('is false when the flag count does not match', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) =>
+      cell.index === 1 ? { ...cell, state: 'revealed' as const, adjacentMines: 1 } : cell,
+    );
+
+    expect(isChordReady(cells, 1, config)).toBe(false);
+  });
+
+  it('is false for a hidden or blank-revealed cell', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config);
+
+    expect(isChordReady(cells, 0, config)).toBe(false); // hidden
+    expect(isChordReady(cells, 1, config)).toBe(false); // revealed but adjacentMines 0 by default
   });
 });
 

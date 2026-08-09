@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MatDialogActions,
@@ -8,7 +8,7 @@ import {
 } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { CurrencyStore } from '../../services/currency-store';
-import { UpgradesStore } from '../../services/upgrades-store';
+import { MAX_MINE_DENSITY, timerIntervalMs, UpgradesStore } from '../../services/upgrades-store';
 
 @Component({
   selector: 'ms-upgrades-dialog',
@@ -22,6 +22,35 @@ export class UpgradesDialog {
 
   protected readonly currency = inject(CurrencyStore);
   protected readonly upgrades = inject(UpgradesStore);
+
+  protected readonly mineDensityPercent = computed(() =>
+    Math.round(this.upgrades.mineDensity() * 100),
+  );
+  protected readonly isMineDensityHigh = computed(
+    () => this.upgrades.mineDensity() >= MAX_MINE_DENSITY,
+  );
+
+  protected readonly snifferSeconds = computed(() => this.upgrades.snifferIntervalMs() / 1000);
+  protected readonly nextSnifferSeconds = computed(
+    () => timerIntervalMs(this.upgrades.snifferSpeedLevel() + 1) / 1000,
+  );
+
+  protected readonly autoChordSeconds = computed(() => this.upgrades.autoChordIntervalMs() / 1000);
+  protected readonly nextAutoChordSeconds = computed(
+    () => timerIntervalMs(this.upgrades.autoChordSpeedLevel() + 1) / 1000,
+  );
+
+  protected readonly autoRestartSeconds = computed(
+    () => this.upgrades.autoRestartIntervalMs() / 1000,
+  );
+  protected readonly nextAutoRestartSeconds = computed(
+    () => timerIntervalMs(this.upgrades.autoRestartSpeedLevel() + 1) / 1000,
+  );
+
+  protected readonly autoFlagSeconds = computed(() => this.upgrades.autoFlagIntervalMs() / 1000);
+  protected readonly nextAutoFlagSeconds = computed(
+    () => timerIntervalMs(this.upgrades.autoFlagSpeedLevel() + 1) / 1000,
+  );
 
   protected buyMineCapacity(): void {
     this.upgrades.buyMineCapacity();
@@ -41,6 +70,14 @@ export class UpgradesDialog {
 
   protected buyAutoChordSpeed(): void {
     this.upgrades.buyAutoChordSpeed();
+  }
+
+  protected buyAutoRestartSpeed(): void {
+    this.upgrades.buyAutoRestartSpeed();
+  }
+
+  protected buyAutoFlagSpeed(): void {
+    this.upgrades.buyAutoFlagSpeed();
   }
 
   protected close(): void {

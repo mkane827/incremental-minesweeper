@@ -37,6 +37,14 @@
   box-shadow: none;
 }
 
+:host(.is-revealed.is-chord-ready) {
+  cursor: pointer;
+}
+
+:host(.is-revealed.is-chord-ready:hover) {
+  background: var(--mat-sys-secondary-container);
+}
+
 :host(.is-exploded) {
   background: var(--mat-sys-error);
   border-color: var(--mat-sys-error);

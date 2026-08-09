@@ -3,6 +3,7 @@
     <ms-cell
       [cell]="cell"
       [locked]="locked()"
+      [chordReady]="chordReady().has(cell.index)"
       (reveal)="onReveal(cell.index)"
       (flag)="onFlag(cell.index)"
       (chord)="onChord(cell.index)"

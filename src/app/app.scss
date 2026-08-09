@@ -55,14 +55,25 @@
   gap: 8px;
   margin: 16px 0 4px;
   padding: 10px 16px;
+  border: none;
   border-radius: 999px;
   background: var(--mat-sys-tertiary-container);
   color: var(--mat-sys-on-tertiary-container);
   font: var(--mat-sys-body-medium);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-tertiary-container), var(--mat-sys-on-tertiary-container) 12%);
+  }
 
   &.is-lost {
     background: var(--mat-sys-error-container);
     color: var(--mat-sys-on-error-container);
+
+    &:hover {
+      background: color-mix(in srgb, var(--mat-sys-error-container), var(--mat-sys-on-error-container) 12%);
+    }
   }
 }
 

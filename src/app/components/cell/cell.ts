@@ -24,6 +24,7 @@ import { KeybindingsStore } from '../../services/keybindings-store';
     '[class.is-flagged]': 'cell().state === "flagged"',
     '[class.is-exploded]': 'cell().exploded',
     '[class.is-wrong]': 'cell().wrongFlag',
+    '[class.is-chord-ready]': 'chordReady()',
     '[attr.data-count]': 'countAttr()',
     '[attr.aria-label]': 'ariaLabel()',
     '(click)': 'onPrimary()',
@@ -38,6 +39,7 @@ export class CellComponent {
 
   readonly cell = input.required<Cell>();
   readonly locked = input(false);
+  readonly chordReady = input(false);
 
   readonly reveal = output<void>();
   readonly flag = output<void>();

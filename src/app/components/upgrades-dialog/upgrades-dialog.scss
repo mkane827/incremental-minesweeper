@@ -38,3 +38,8 @@
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }
+
+.density.is-high {
+  color: var(--mat-sys-error);
+  font-weight: 600;
+}

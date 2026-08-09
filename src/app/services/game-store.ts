@@ -1,4 +1,4 @@
-import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { BoardConfig, Cell, GameStatus } from '../models/cell';
 import {
   autoFlag,
@@ -14,7 +14,17 @@ import {
 import { CurrencyStore } from './currency-store';
 import { UpgradesStore } from './upgrades-store';
 
-const MAX_ELAPSED = 999;
+const MAX_ELAPSED_MS = 999_000;
+
+/**
+ * UI refresh cadence for the countdowns. Correctness does NOT depend on this
+ * firing reliably - every check compares against a real wall-clock deadline
+ * (`Date.now() + intervalMs`), so a throttled background tab (browsers
+ * routinely clamp `setInterval` there) just means the UI updates in bursts
+ * instead of smoothly; timers still resolve at the right real-world moment
+ * instead of running in slow motion.
+ */
+const TICK_MS = 100;
 
 /**
  * Single source of truth for a round of minesweeper.
@@ -33,16 +43,32 @@ export class GameStore {
   private readonly _config = signal<BoardConfig>(this.currentMaxConfig());
   private readonly _cells = signal<readonly Cell[]>(createCells(this._config()));
   private readonly _status = signal<GameStatus>('idle');
-  private readonly _elapsedSeconds = signal(0);
-  private readonly _secondsUntilSniff = signal(this.upgrades.snifferIntervalSeconds());
-  private readonly _secondsUntilAutoChord = signal(this.upgrades.autoChordIntervalSeconds());
+  private readonly _elapsedMs = signal(0);
+  private readonly _nowMs = signal(Date.now());
+  private readonly _snifferDeadline = signal(Date.now() + this.upgrades.snifferIntervalMs());
+  private readonly _autoChordDeadline = signal(Date.now() + this.upgrades.autoChordIntervalMs());
+  private readonly _autoRestartDeadline = signal(
+    Date.now() + this.upgrades.autoRestartIntervalMs(),
+  );
+  private readonly _autoFlagDeadline = signal(Date.now() + this.upgrades.autoFlagIntervalMs());
 
   readonly config = this._config.asReadonly();
   readonly cells = this._cells.asReadonly();
   readonly status = this._status.asReadonly();
-  readonly elapsedSeconds = this._elapsedSeconds.asReadonly();
-  readonly secondsUntilSniff = this._secondsUntilSniff.asReadonly();
-  readonly secondsUntilAutoChord = this._secondsUntilAutoChord.asReadonly();
+
+  readonly elapsedSeconds = computed(() => Math.floor(this._elapsedMs() / 1000));
+  readonly secondsUntilSniff = computed(() =>
+    Math.max(0, Math.ceil((this._snifferDeadline() - this._nowMs()) / 1000)),
+  );
+  readonly secondsUntilAutoChord = computed(() =>
+    Math.max(0, Math.ceil((this._autoChordDeadline() - this._nowMs()) / 1000)),
+  );
+  readonly secondsUntilAutoRestart = computed(() =>
+    Math.max(0, Math.ceil((this._autoRestartDeadline() - this._nowMs()) / 1000)),
+  );
+  readonly secondsUntilAutoFlag = computed(() =>
+    Math.max(0, Math.ceil((this._autoFlagDeadline() - this._nowMs()) / 1000)),
+  );
 
   readonly flagCount = computed(
     () => this._cells().filter((cell) => cell.state === 'flagged').length,
@@ -62,17 +88,46 @@ export class GameStore {
 
   constructor() {
     this.destroyRef.onDestroy(() => this.stopTimer());
+    this.startTimer();
+
+    // A round that hasn't started yet has nothing "locked in" - if any
+    // upgrade changes while idle, immediately regenerate so the still-unstarted
+    // board (and its timers) reflect the purchase right away. Every effect
+    // always fires once automatically on creation regardless of whether a
+    // dependency ever changes; that first run must be skipped; otherwise it'd
+    // reset an idle countdown's progress for no reason the instant the game loads.
+    let firstEffectRun = true;
+    effect(() => {
+      this.upgrades.boardRows();
+      this.upgrades.boardCols();
+      this.upgrades.maxMines();
+      this.upgrades.snifferIntervalMs();
+      this.upgrades.autoChordIntervalMs();
+      this.upgrades.autoRestartIntervalMs();
+      this.upgrades.autoFlagIntervalMs();
+      untracked(() => {
+        if (firstEffectRun) {
+          firstEffectRun = false;
+          return;
+        }
+        if (this._status() === 'idle') {
+          this.newGame();
+        }
+      });
+    });
   }
 
   /** Starts a fresh round, optionally with a different board size. */
   newGame(config: BoardConfig = this.currentMaxConfig()): void {
-    this.stopTimer();
+    const now = Date.now();
     this._config.set(config);
     this._cells.set(createCells(config));
     this._status.set('idle');
-    this._elapsedSeconds.set(0);
-    this._secondsUntilSniff.set(this.upgrades.snifferIntervalSeconds());
-    this._secondsUntilAutoChord.set(this.upgrades.autoChordIntervalSeconds());
+    this._elapsedMs.set(0);
+    this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
+    this._autoChordDeadline.set(now + this.upgrades.autoChordIntervalMs());
+    this._autoRestartDeadline.set(now + this.upgrades.autoRestartIntervalMs());
+    this._autoFlagDeadline.set(now + this.upgrades.autoFlagIntervalMs());
   }
 
   /** Left click: uncover a square (or chord, if it is already a number). */
@@ -81,20 +136,17 @@ export class GameStore {
       return;
     }
 
-    let cells = this._cells();
-    const target = cells[index];
-    if (!target || target.state !== 'hidden') {
+    const before = this._cells()[index];
+    if (!before || before.state !== 'hidden') {
       return;
     }
 
-    const config = this._config();
+    // Mines are laid on the first click (whether by the player or the
+    // autosniffer) so the opening move is never fatal.
+    this.ensureMinesPlaced(index);
 
-    // Mines are laid on the first click so the opening move is never fatal.
-    if (this._status() === 'idle') {
-      cells = placeMines(cells, config, index);
-      this._status.set('playing');
-      this.startTimer();
-    }
+    const cells = this._cells();
+    const config = this._config();
 
     if (cells[index].isMine) {
       this._cells.set(revealMines(cells, index));
@@ -102,7 +154,7 @@ export class GameStore {
       return;
     }
 
-    const next = autoFlag(floodReveal(cells, index, config), config);
+    const next = floodReveal(cells, index, config);
     this._cells.set(next);
     this.settle(next);
   }
@@ -147,10 +199,11 @@ export class GameStore {
       return;
     }
 
-    // Placing a sniffer when the timer is sitting at 0 immediately resolves it.
-    if (this._secondsUntilSniff() === 0 && this._status() === 'playing') {
+    // Placing a sniffer once the deadline has already passed resolves it immediately.
+    const now = Date.now();
+    if (now >= this._snifferDeadline()) {
       this.resolveSnifferAtIndex(index);
-      this._secondsUntilSniff.set(this.upgrades.snifferIntervalSeconds());
+      this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
     } else {
       const next = cells.slice();
       next[index] = { ...target, hasSniffer: true };
@@ -192,9 +245,18 @@ export class GameStore {
     for (const n of toReveal) {
       next = floodReveal(next, n, config);
     }
-    next = autoFlag(next, config);
     this._cells.set(next);
     this.settle(next);
+  }
+
+  /** Lays mines around `safeIndex` and starts the round, if it hasn't already. */
+  private ensureMinesPlaced(safeIndex: number): void {
+    if (this._status() !== 'idle') {
+      return;
+    }
+    const next = placeMines(this._cells(), this._config(), safeIndex);
+    this._cells.set(next);
+    this._status.set('playing');
   }
 
   private settle(cells: readonly Cell[]): void {
@@ -206,7 +268,9 @@ export class GameStore {
 
   private finish(status: Extract<GameStatus, 'won' | 'lost'>): void {
     this._status.set(status);
-    this.stopTimer();
+    // Starts fresh from the actual moment the round ends, not from newGame()
+    // time - a round that took a while to play still gets a full countdown.
+    this._autoRestartDeadline.set(Date.now() + this.upgrades.autoRestartIntervalMs());
     if (status === 'won') {
       this.currency.earn(this._config().mines);
     }
@@ -220,25 +284,40 @@ export class GameStore {
     };
   }
 
+  /** Runs for the lifetime of the store - sniffer/auto-flag/auto-chord/auto-restart all key off it. */
   private startTimer(): void {
     this.stopTimer();
+    let lastTickAt = Date.now();
+
     this.timerId = setInterval(() => {
-      this._elapsedSeconds.update((value) => Math.min(value + 1, MAX_ELAPSED));
-      this._secondsUntilSniff.update((seconds) => {
-        const next = seconds > 0 ? seconds - 1 : 0;
-        if (next === 0) {
-          return this.tryResolveSniffer() ? this.upgrades.snifferIntervalSeconds() : 0;
+      const now = Date.now();
+      const deltaMs = now - lastTickAt;
+      lastTickAt = now;
+      this._nowMs.set(now);
+
+      if (this._status() === 'playing') {
+        this._elapsedMs.update((ms) => Math.min(ms + deltaMs, MAX_ELAPSED_MS));
+      }
+
+      if (this.isOver()) {
+        if (now >= this._autoRestartDeadline()) {
+          this.newGame();
         }
-        return next;
-      });
-      this._secondsUntilAutoChord.update((seconds) => {
-        const next = seconds > 0 ? seconds - 1 : 0;
-        if (next === 0) {
-          return this.tryAutoChord() ? this.upgrades.autoChordIntervalSeconds() : 0;
-        }
-        return next;
-      });
-    }, 1000);
+        return;
+      }
+
+      // Sniffer first (it can reveal or flag), then auto-flag, then
+      // auto-chord last so it sees any flags placed earlier in this tick.
+      if (now >= this._snifferDeadline() && this.tryResolveSniffer()) {
+        this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
+      }
+      if (now >= this._autoFlagDeadline() && this.tryAutoFlag()) {
+        this._autoFlagDeadline.set(now + this.upgrades.autoFlagIntervalMs());
+      }
+      if (now >= this._autoChordDeadline() && this.tryAutoChord()) {
+        this._autoChordDeadline.set(now + this.upgrades.autoChordIntervalMs());
+      }
+    }, TICK_MS);
   }
 
   private stopTimer(): void {
@@ -252,6 +331,8 @@ export class GameStore {
     if (this.isOver()) {
       return;
     }
+
+    this.ensureMinesPlaced(index);
 
     const cells = this._cells();
     const target = cells[index];
@@ -271,7 +352,7 @@ export class GameStore {
     } else {
       let next = cells.slice();
       next[index] = { ...target, hasSniffer: false };
-      next = autoFlag(floodReveal(next, index, this._config()), this._config());
+      next = floodReveal(next, index, this._config());
       this._cells.set(next);
       this.settle(next);
     }
@@ -298,6 +379,19 @@ export class GameStore {
 
     const randomIndex = candidates[Math.floor(Math.random() * candidates.length)];
     this.resolveSnifferAtIndex(randomIndex);
+    return true;
+  }
+
+  /** Flags any logically-deducible mines. Returns whether anything was flagged. */
+  private tryAutoFlag(): boolean {
+    const cells = this._cells();
+    const next = autoFlag(cells, this._config());
+    const changed = next.some((cell, i) => cell.state !== cells[i].state);
+    if (!changed) {
+      return false;
+    }
+    this._cells.set(next);
+    this.settle(next);
     return true;
   }
 

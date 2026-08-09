@@ -24,11 +24,15 @@ export class GameHeader {
   protected readonly minesRemaining = this.store.minesRemaining;
   protected readonly status = this.store.status;
   protected readonly secondsUntilSniff = this.store.secondsUntilSniff;
+  protected readonly secondsUntilAutoFlag = this.store.secondsUntilAutoFlag;
   protected readonly secondsUntilAutoChord = this.store.secondsUntilAutoChord;
+  protected readonly secondsUntilAutoRestart = this.store.secondsUntilAutoRestart;
 
   protected readonly elapsed = computed(() => pad(this.store.elapsedSeconds()));
   protected readonly snifferText = computed(() => `${pad2(this.secondsUntilSniff())}s`);
+  protected readonly autoFlagText = computed(() => `${pad2(this.secondsUntilAutoFlag())}s`);
   protected readonly autoChordText = computed(() => `${pad2(this.secondsUntilAutoChord())}s`);
+  protected readonly autoRestartText = computed(() => `${pad2(this.secondsUntilAutoRestart())}s`);
   protected readonly mineText = computed(() => {
     const remaining = this.minesRemaining();
     return remaining < 0 ? `-${pad(Math.abs(remaining))}` : pad(remaining);
