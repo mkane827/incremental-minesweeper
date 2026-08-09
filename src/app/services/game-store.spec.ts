@@ -242,6 +242,8 @@ describe('GameStore', () => {
     // which would otherwise land on the same (only) hidden cell first.
     const upgrades = TestBed.inject(UpgradesStore);
     const currency = TestBed.inject(CurrencyStore);
+    currency.earn(150);
+    upgrades.buyAutoFlagUnlock();
     currency.earn(20);
     upgrades.buyAutoFlagSpeed(); // 10s -> 9s
 
@@ -256,6 +258,46 @@ describe('GameStore', () => {
     expect(store.cells()[1].state).toBe('flagged');
     expect(store.status()).toBe('playing'); // still not won - cells 2-5 remain hidden
     expect(store.secondsUntilSniff()).toBeGreaterThan(0);
+  });
+
+  it('flags only one mine per tick even when several are simultaneously deducible', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(150);
+    upgrades.buyAutoFlagUnlock();
+
+    const store = createStore();
+    // 2x4 board: [0 1 2 3] / [4 5 6 7]. Mines forced onto 0 and 1 (see mock
+    // above). Revealing 5 then 4 leaves cell 4 showing "2" with exactly 0 and
+    // 1 as its still-hidden neighbours - a single already-satisfied clue that
+    // logically proves both mines at once, without clearing the whole board
+    // (cells 2, 3, 6, 7 stay hidden, so no win-time flagRemainingMines fires).
+    store.newGame({ rows: 2, cols: 4, mines: 2 });
+    store.reveal(5);
+    store.reveal(4);
+
+    expect(store.cells()[0].state).toBe('hidden');
+    expect(store.cells()[1].state).toBe('hidden');
+
+    vi.advanceTimersByTime(10000); // one auto-flag tick
+
+    expect(store.cells()[0].state).toBe('flagged');
+    expect(store.cells()[1].state).toBe('hidden'); // not cascaded to the second mine yet
+    expect(store.status()).toBe('playing');
+
+    vi.advanceTimersByTime(10000); // a second tick picks up the now-remaining deduction
+
+    expect(store.cells()[1].state).toBe('flagged');
+  });
+
+  it('stays completely inert while sniffer, auto-flag, auto-chord, and auto-restart are all locked', () => {
+    const store = createStore();
+    store.newGame({ rows: 3, cols: 3, mines: 1 });
+
+    vi.advanceTimersByTime(20000); // well past every default 10s interval
+
+    expect(store.status()).toBe('idle'); // no autosniffer move - sniffer is locked
+    expect(store.cells().every((cell) => cell.state === 'hidden')).toBe(true);
   });
 
   it("awards currency equal to the board's mine count on a win", () => {
@@ -296,6 +338,11 @@ describe('GameStore', () => {
   });
 
   it('toggles sniffer on a hidden cell', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(100);
+    upgrades.buySnifferUnlock();
+
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -307,6 +354,11 @@ describe('GameStore', () => {
   });
 
   it('resolves a sniffer every 10 seconds while playing', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(100);
+    upgrades.buySnifferUnlock();
+
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -324,6 +376,12 @@ describe('GameStore', () => {
   });
 
   it('auto-sniffs a random hidden square when the timer hits zero with no sniffer marked', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(400);
+    upgrades.buySnifferUnlock();
+    upgrades.buyAutoSnifferUnlock();
+
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -339,6 +397,11 @@ describe('GameStore', () => {
   });
 
   it('immediately resolves a sniffer placed while the countdown is genuinely frozen at 0', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(100);
+    upgrades.buySnifferUnlock();
+
     const store = createStore();
     store.newGame({ rows: 2, cols: 2, mines: 1 });
 
@@ -363,6 +426,11 @@ describe('GameStore', () => {
   });
 
   it('automatically chords an available square after 10 seconds', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(250);
+    upgrades.buyAutoChordUnlock();
+
     const store = createStore();
     store.newGame({ rows: 3, cols: 3, mines: 1 });
 
@@ -376,6 +444,13 @@ describe('GameStore', () => {
   });
 
   it('waits at 0 for a chord to become available, then resolves it on the next tick', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(650);
+    upgrades.buySnifferUnlock();
+    upgrades.buyAutoSnifferUnlock();
+    upgrades.buyAutoChordUnlock();
+
     const store = createStore();
     // Two mines so the autosniffer flagging the first one (at the 10s mark,
     // alongside the auto-chord tick) doesn't by itself complete the chord.
@@ -412,6 +487,12 @@ describe('GameStore', () => {
   });
 
   it('lets the autosniffer make the very first move so nobody has to click anything', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(400);
+    upgrades.buySnifferUnlock();
+    upgrades.buyAutoSnifferUnlock();
+
     const store = createStore();
     store.newGame({ rows: 3, cols: 3, mines: 1 });
 
@@ -435,6 +516,11 @@ describe('GameStore', () => {
   });
 
   it('automatically starts a new game once the auto-restart timer elapses', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(100);
+    upgrades.buyAutoRestartUnlock();
+
     const store = createStore();
     store.newGame({ rows: 1, cols: 3, mines: 1 });
 

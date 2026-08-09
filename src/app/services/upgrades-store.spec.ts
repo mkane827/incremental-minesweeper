@@ -204,6 +204,8 @@ describe('UpgradesStore', () => {
   it('buys sniffer, auto-flag, auto-chord, and auto-restart speed levels independently', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
+    currency.earn(100);
+    store.buySnifferUnlock();
     currency.earn(20);
 
     store.buySnifferSpeed();
@@ -215,10 +217,16 @@ describe('UpgradesStore', () => {
     expect(store.autoFlagSpeedLevel()).toBe(0);
     expect(currency.mines()).toBe(0);
 
+    currency.earn(250);
+    store.buyAutoChordUnlock();
     currency.earn(20);
     store.buyAutoChordSpeed();
+    currency.earn(100);
+    store.buyAutoRestartUnlock();
     currency.earn(20);
     store.buyAutoRestartSpeed();
+    currency.earn(150);
+    store.buyAutoFlagUnlock();
     currency.earn(20);
     store.buyAutoFlagSpeed();
 
@@ -242,6 +250,8 @@ describe('UpgradesStore', () => {
     expect(store.boardColsCost()).toBe(15); // unaffected
     expect(store.mineCapacityCost()).toBe(10); // unaffected
 
+    currency.earn(100);
+    store.buySnifferUnlock();
     currency.earn(20);
     store.buySnifferSpeed();
 
@@ -258,6 +268,14 @@ describe('UpgradesStore', () => {
     store.buyMineCapacity();
     store.buyBoardRows();
     store.buyBoardCols();
+
+    currency.earn(600); // 100 + 150 + 250 + 100 unlock costs
+    store.buySnifferUnlock();
+    store.buyAutoFlagUnlock();
+    store.buyAutoChordUnlock();
+    store.buyAutoRestartUnlock();
+
+    currency.earn(80); // 20 * 4 speed levels
     store.buySnifferSpeed();
     store.buyAutoChordSpeed();
     store.buyAutoRestartSpeed();
@@ -271,6 +289,11 @@ describe('UpgradesStore', () => {
       autoChordSpeed: 1,
       autoRestartSpeed: 1,
       autoFlagSpeed: 1,
+      snifferUnlocked: true,
+      autoFlagUnlocked: true,
+      autoChordUnlocked: true,
+      autoRestartUnlocked: true,
+      autoSnifferUnlocked: false,
     });
   });
 
@@ -328,5 +351,113 @@ describe('UpgradesStore', () => {
     expect(store.autoChordSpeedLevel()).toBe(0);
     expect(store.autoRestartSpeedLevel()).toBe(0);
     expect(store.autoFlagSpeedLevel()).toBe(0);
+  });
+
+  describe('unlock gating', () => {
+    it('starts with every automation locked', () => {
+      const store = createStore();
+
+      expect(store.snifferUnlocked()).toBe(false);
+      expect(store.autoFlagUnlocked()).toBe(false);
+      expect(store.autoChordUnlocked()).toBe(false);
+      expect(store.autoRestartUnlocked()).toBe(false);
+      expect(store.autoSnifferUnlocked()).toBe(false);
+    });
+
+    it('refuses to buy a speed level before the matching unlock is bought', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(1000);
+
+      store.buySnifferSpeed();
+      store.buyAutoFlagSpeed();
+      store.buyAutoChordSpeed();
+      store.buyAutoRestartSpeed();
+
+      expect(store.snifferSpeedLevel()).toBe(0);
+      expect(store.autoFlagSpeedLevel()).toBe(0);
+      expect(store.autoChordSpeedLevel()).toBe(0);
+      expect(store.autoRestartSpeedLevel()).toBe(0);
+      expect(currency.mines()).toBe(1000); // nothing spent
+    });
+
+    it('unlocks the sniffer, spending its cost exactly once', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(100);
+
+      expect(store.canAffordSnifferUnlock()).toBe(true);
+      store.buySnifferUnlock();
+
+      expect(store.snifferUnlocked()).toBe(true);
+      expect(currency.mines()).toBe(0);
+      expect(store.canAffordSnifferUnlock()).toBe(false); // already unlocked
+
+      currency.earn(100);
+      store.buySnifferUnlock(); // no-op, already unlocked
+      expect(currency.mines()).toBe(100); // not spent again
+    });
+
+    it('unlocks auto-flag, auto-chord, and auto-restart independently', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(150);
+      store.buyAutoFlagUnlock();
+      expect(store.autoFlagUnlocked()).toBe(true);
+      expect(store.autoChordUnlocked()).toBe(false);
+      expect(store.autoRestartUnlocked()).toBe(false);
+
+      currency.earn(250);
+      store.buyAutoChordUnlock();
+      expect(store.autoChordUnlocked()).toBe(true);
+      expect(store.autoRestartUnlocked()).toBe(false);
+
+      currency.earn(100);
+      store.buyAutoRestartUnlock();
+      expect(store.autoRestartUnlocked()).toBe(true);
+    });
+
+    it('allows buying a speed level once its unlock is purchased', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(100);
+      store.buySnifferUnlock();
+
+      currency.earn(20);
+      expect(store.canAffordSnifferSpeed()).toBe(true);
+      store.buySnifferSpeed();
+
+      expect(store.snifferSpeedLevel()).toBe(1);
+    });
+
+    it('blocks the auto-sniffer unlock until the base sniffer is unlocked', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+      currency.earn(300);
+
+      expect(store.canAffordAutoSnifferUnlock()).toBe(false);
+      store.buyAutoSnifferUnlock();
+      expect(store.autoSnifferUnlocked()).toBe(false);
+      expect(currency.mines()).toBe(300); // nothing spent, sniffer not unlocked yet
+
+      currency.earn(100);
+      store.buySnifferUnlock();
+
+      expect(store.canAffordAutoSnifferUnlock()).toBe(true);
+      store.buyAutoSnifferUnlock();
+      expect(store.autoSnifferUnlocked()).toBe(true);
+      expect(currency.mines()).toBe(0);
+    });
+
+    it('never loads autoSnifferUnlocked as true unless snifferUnlocked is also true', () => {
+      localStorage.setItem(
+        'ms-upgrades',
+        JSON.stringify({ mineCapacity: 0, snifferUnlocked: false, autoSnifferUnlocked: true }),
+      );
+
+      const store = createStore();
+
+      expect(store.autoSnifferUnlocked()).toBe(false);
+    });
   });
 });

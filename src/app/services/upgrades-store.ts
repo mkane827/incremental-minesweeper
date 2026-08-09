@@ -62,6 +62,19 @@ const AUTO_RESTART_SPEED_COST_GROWTH = 1.25;
 const AUTO_FLAG_SPEED_BASE_COST = 20;
 const AUTO_FLAG_SPEED_COST_GROWTH = 1.25;
 
+/**
+ * Each automation is inert until its one-time unlock is bought - the timer
+ * upgrades above only matter, and only become purchasable, once the
+ * matching automation is unlocked. Auto-sniffer is a further, pricier
+ * unlock on top of the sniffer unlock: without it, an unmarked sniffer
+ * timer just waits instead of picking a random hidden square.
+ */
+export const SNIFFER_UNLOCK_COST = 100;
+export const AUTO_FLAG_UNLOCK_COST = 150;
+export const AUTO_CHORD_UNLOCK_COST = 250;
+export const AUTO_RESTART_UNLOCK_COST = 100;
+export const AUTO_SNIFFER_UNLOCK_COST = 300;
+
 interface StoredUpgrades {
   readonly mineCapacity: number;
   readonly boardRows?: number;
@@ -71,6 +84,11 @@ interface StoredUpgrades {
   readonly autoChordSpeed?: number;
   readonly autoRestartSpeed?: number;
   readonly autoFlagSpeed?: number;
+  readonly snifferUnlocked?: boolean;
+  readonly autoFlagUnlocked?: boolean;
+  readonly autoChordUnlocked?: boolean;
+  readonly autoRestartUnlocked?: boolean;
+  readonly autoSnifferUnlocked?: boolean;
 }
 
 interface LoadedUpgrades {
@@ -81,6 +99,11 @@ interface LoadedUpgrades {
   readonly autoChordSpeed: number;
   readonly autoRestartSpeed: number;
   readonly autoFlagSpeed: number;
+  readonly snifferUnlocked: boolean;
+  readonly autoFlagUnlocked: boolean;
+  readonly autoChordUnlocked: boolean;
+  readonly autoRestartUnlocked: boolean;
+  readonly autoSnifferUnlocked: boolean;
 }
 
 /** Meta-progression: upgrades bought with banked mines that persist between games. */
@@ -96,6 +119,11 @@ export class UpgradesStore {
   private readonly _autoChordSpeedLevel = signal(this.stored.autoChordSpeed);
   private readonly _autoRestartSpeedLevel = signal(this.stored.autoRestartSpeed);
   private readonly _autoFlagSpeedLevel = signal(this.stored.autoFlagSpeed);
+  private readonly _snifferUnlocked = signal(this.stored.snifferUnlocked);
+  private readonly _autoFlagUnlocked = signal(this.stored.autoFlagUnlocked);
+  private readonly _autoChordUnlocked = signal(this.stored.autoChordUnlocked);
+  private readonly _autoRestartUnlocked = signal(this.stored.autoRestartUnlocked);
+  private readonly _autoSnifferUnlocked = signal(this.stored.autoSnifferUnlocked);
 
   readonly mineCapacityLevel = this._mineCapacityLevel.asReadonly();
   readonly boardRowsLevel = this._boardRowsLevel.asReadonly();
@@ -104,6 +132,17 @@ export class UpgradesStore {
   readonly autoChordSpeedLevel = this._autoChordSpeedLevel.asReadonly();
   readonly autoRestartSpeedLevel = this._autoRestartSpeedLevel.asReadonly();
   readonly autoFlagSpeedLevel = this._autoFlagSpeedLevel.asReadonly();
+  readonly snifferUnlocked = this._snifferUnlocked.asReadonly();
+  readonly autoFlagUnlocked = this._autoFlagUnlocked.asReadonly();
+  readonly autoChordUnlocked = this._autoChordUnlocked.asReadonly();
+  readonly autoRestartUnlocked = this._autoRestartUnlocked.asReadonly();
+  readonly autoSnifferUnlocked = this._autoSnifferUnlocked.asReadonly();
+
+  readonly snifferUnlockCost = SNIFFER_UNLOCK_COST;
+  readonly autoFlagUnlockCost = AUTO_FLAG_UNLOCK_COST;
+  readonly autoChordUnlockCost = AUTO_CHORD_UNLOCK_COST;
+  readonly autoRestartUnlockCost = AUTO_RESTART_UNLOCK_COST;
+  readonly autoSnifferUnlockCost = AUTO_SNIFFER_UNLOCK_COST;
 
   /** The mine count every new board is generated with. */
   readonly maxMines = computed(() => BASE_MAX_MINES + this._mineCapacityLevel());
@@ -164,16 +203,48 @@ export class UpgradesStore {
   readonly canAffordBoardRows = computed(() => this.currency.mines() >= this.boardRowsCost());
   readonly canAffordBoardCols = computed(() => this.currency.mines() >= this.boardColsCost());
   readonly canAffordSnifferSpeed = computed(
-    () => !this.isSnifferSpeedMaxed() && this.currency.mines() >= this.snifferSpeedCost(),
+    () =>
+      this._snifferUnlocked() &&
+      !this.isSnifferSpeedMaxed() &&
+      this.currency.mines() >= this.snifferSpeedCost(),
   );
   readonly canAffordAutoChordSpeed = computed(
-    () => !this.isAutoChordSpeedMaxed() && this.currency.mines() >= this.autoChordSpeedCost(),
+    () =>
+      this._autoChordUnlocked() &&
+      !this.isAutoChordSpeedMaxed() &&
+      this.currency.mines() >= this.autoChordSpeedCost(),
   );
   readonly canAffordAutoRestartSpeed = computed(
-    () => !this.isAutoRestartSpeedMaxed() && this.currency.mines() >= this.autoRestartSpeedCost(),
+    () =>
+      this._autoRestartUnlocked() &&
+      !this.isAutoRestartSpeedMaxed() &&
+      this.currency.mines() >= this.autoRestartSpeedCost(),
   );
   readonly canAffordAutoFlagSpeed = computed(
-    () => !this.isAutoFlagSpeedMaxed() && this.currency.mines() >= this.autoFlagSpeedCost(),
+    () =>
+      this._autoFlagUnlocked() &&
+      !this.isAutoFlagSpeedMaxed() &&
+      this.currency.mines() >= this.autoFlagSpeedCost(),
+  );
+
+  readonly canAffordSnifferUnlock = computed(
+    () => !this._snifferUnlocked() && this.currency.mines() >= SNIFFER_UNLOCK_COST,
+  );
+  readonly canAffordAutoFlagUnlock = computed(
+    () => !this._autoFlagUnlocked() && this.currency.mines() >= AUTO_FLAG_UNLOCK_COST,
+  );
+  readonly canAffordAutoChordUnlock = computed(
+    () => !this._autoChordUnlocked() && this.currency.mines() >= AUTO_CHORD_UNLOCK_COST,
+  );
+  readonly canAffordAutoRestartUnlock = computed(
+    () => !this._autoRestartUnlocked() && this.currency.mines() >= AUTO_RESTART_UNLOCK_COST,
+  );
+  /** Only purchasable once the base sniffer is already unlocked. */
+  readonly canAffordAutoSnifferUnlock = computed(
+    () =>
+      this._snifferUnlocked() &&
+      !this._autoSnifferUnlocked() &&
+      this.currency.mines() >= AUTO_SNIFFER_UNLOCK_COST,
   );
 
   /** Spends the current cost and bumps max mines by one, unless the density cap blocks it. */
@@ -203,39 +274,104 @@ export class UpgradesStore {
     this.persist();
   }
 
-  /** Spends the current cost and speeds up the sniffer timer, if affordable. */
+  /** Spends the current cost and speeds up the sniffer timer, if unlocked and affordable. */
   buySnifferSpeed(): void {
-    if (this.isSnifferSpeedMaxed() || !this.currency.spend(this.snifferSpeedCost())) {
+    if (
+      !this._snifferUnlocked() ||
+      this.isSnifferSpeedMaxed() ||
+      !this.currency.spend(this.snifferSpeedCost())
+    ) {
       return;
     }
     this._snifferSpeedLevel.update((value) => value + 1);
     this.persist();
   }
 
-  /** Spends the current cost and speeds up the auto-chord timer, if affordable. */
+  /** Spends the current cost and speeds up the auto-chord timer, if unlocked and affordable. */
   buyAutoChordSpeed(): void {
-    if (this.isAutoChordSpeedMaxed() || !this.currency.spend(this.autoChordSpeedCost())) {
+    if (
+      !this._autoChordUnlocked() ||
+      this.isAutoChordSpeedMaxed() ||
+      !this.currency.spend(this.autoChordSpeedCost())
+    ) {
       return;
     }
     this._autoChordSpeedLevel.update((value) => value + 1);
     this.persist();
   }
 
-  /** Spends the current cost and speeds up the auto-restart timer, if affordable. */
+  /** Spends the current cost and speeds up the auto-restart timer, if unlocked and affordable. */
   buyAutoRestartSpeed(): void {
-    if (this.isAutoRestartSpeedMaxed() || !this.currency.spend(this.autoRestartSpeedCost())) {
+    if (
+      !this._autoRestartUnlocked() ||
+      this.isAutoRestartSpeedMaxed() ||
+      !this.currency.spend(this.autoRestartSpeedCost())
+    ) {
       return;
     }
     this._autoRestartSpeedLevel.update((value) => value + 1);
     this.persist();
   }
 
-  /** Spends the current cost and speeds up the auto-flag timer, if affordable. */
+  /** Spends the current cost and speeds up the auto-flag timer, if unlocked and affordable. */
   buyAutoFlagSpeed(): void {
-    if (this.isAutoFlagSpeedMaxed() || !this.currency.spend(this.autoFlagSpeedCost())) {
+    if (
+      !this._autoFlagUnlocked() ||
+      this.isAutoFlagSpeedMaxed() ||
+      !this.currency.spend(this.autoFlagSpeedCost())
+    ) {
       return;
     }
     this._autoFlagSpeedLevel.update((value) => value + 1);
+    this.persist();
+  }
+
+  /** Unlocks the sniffer mechanic itself, if affordable. */
+  buySnifferUnlock(): void {
+    if (this._snifferUnlocked() || !this.currency.spend(SNIFFER_UNLOCK_COST)) {
+      return;
+    }
+    this._snifferUnlocked.set(true);
+    this.persist();
+  }
+
+  /** Unlocks the auto-flag mechanic itself, if affordable. */
+  buyAutoFlagUnlock(): void {
+    if (this._autoFlagUnlocked() || !this.currency.spend(AUTO_FLAG_UNLOCK_COST)) {
+      return;
+    }
+    this._autoFlagUnlocked.set(true);
+    this.persist();
+  }
+
+  /** Unlocks the auto-chord mechanic itself, if affordable. */
+  buyAutoChordUnlock(): void {
+    if (this._autoChordUnlocked() || !this.currency.spend(AUTO_CHORD_UNLOCK_COST)) {
+      return;
+    }
+    this._autoChordUnlocked.set(true);
+    this.persist();
+  }
+
+  /** Unlocks the auto-restart mechanic itself, if affordable. */
+  buyAutoRestartUnlock(): void {
+    if (this._autoRestartUnlocked() || !this.currency.spend(AUTO_RESTART_UNLOCK_COST)) {
+      return;
+    }
+    this._autoRestartUnlocked.set(true);
+    this.persist();
+  }
+
+  /** Unlocks the sniffer's random-hidden-square fallback, if the sniffer is unlocked and affordable. */
+  buyAutoSnifferUnlock(): void {
+    if (
+      !this._snifferUnlocked() ||
+      this._autoSnifferUnlocked() ||
+      !this.currency.spend(AUTO_SNIFFER_UNLOCK_COST)
+    ) {
+      return;
+    }
+    this._autoSnifferUnlocked.set(true);
     this.persist();
   }
 
@@ -248,6 +384,11 @@ export class UpgradesStore {
       autoChordSpeed: this._autoChordSpeedLevel(),
       autoRestartSpeed: this._autoRestartSpeedLevel(),
       autoFlagSpeed: this._autoFlagSpeedLevel(),
+      snifferUnlocked: this._snifferUnlocked(),
+      autoFlagUnlocked: this._autoFlagUnlocked(),
+      autoChordUnlocked: this._autoChordUnlocked(),
+      autoRestartUnlocked: this._autoRestartUnlocked(),
+      autoSnifferUnlocked: this._autoSnifferUnlocked(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   }
@@ -261,6 +402,11 @@ export class UpgradesStore {
       autoChordSpeed: 0,
       autoRestartSpeed: 0,
       autoFlagSpeed: 0,
+      snifferUnlocked: false,
+      autoFlagUnlocked: false,
+      autoChordUnlocked: false,
+      autoRestartUnlocked: false,
+      autoSnifferUnlocked: false,
     };
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -277,6 +423,11 @@ export class UpgradesStore {
       const autoChordSpeed = Number(parsed.autoChordSpeed);
       const autoRestartSpeed = Number(parsed.autoRestartSpeed);
       const autoFlagSpeed = Number(parsed.autoFlagSpeed);
+      const snifferUnlocked = parsed.snifferUnlocked === true;
+      const autoFlagUnlocked = parsed.autoFlagUnlocked === true;
+      const autoChordUnlocked = parsed.autoChordUnlocked === true;
+      const autoRestartUnlocked = parsed.autoRestartUnlocked === true;
+      const autoSnifferUnlocked = snifferUnlocked && parsed.autoSnifferUnlocked === true;
 
       if (!Number.isFinite(boardRows) || boardRows < 0) {
         boardRows = Number.isFinite(legacyBoardSize) && legacyBoardSize >= 0 ? legacyBoardSize : 0;
@@ -294,6 +445,11 @@ export class UpgradesStore {
         autoRestartSpeed:
           Number.isFinite(autoRestartSpeed) && autoRestartSpeed >= 0 ? autoRestartSpeed : 0,
         autoFlagSpeed: Number.isFinite(autoFlagSpeed) && autoFlagSpeed >= 0 ? autoFlagSpeed : 0,
+        snifferUnlocked,
+        autoFlagUnlocked,
+        autoChordUnlocked,
+        autoRestartUnlocked,
+        autoSnifferUnlocked,
       };
     } catch {
       return empty;

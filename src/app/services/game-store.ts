@@ -1,9 +1,9 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { BoardConfig, Cell, GameStatus } from '../models/cell';
 import {
-  autoFlag,
   createCells,
   findAvailableChord,
+  findFlaggableMine,
   flagRemainingMines,
   floodReveal,
   isCleared,
@@ -182,7 +182,7 @@ export class GameStore {
 
   /** Places or removes a sniffer (🐶) on a hidden square. */
   toggleSniffer(index: number): void {
-    if (this.isOver()) {
+    if (this.isOver() || !this.upgrades.snifferUnlocked()) {
       return;
     }
 
@@ -300,7 +300,7 @@ export class GameStore {
       }
 
       if (this.isOver()) {
-        if (now >= this._autoRestartDeadline()) {
+        if (this.upgrades.autoRestartUnlocked() && now >= this._autoRestartDeadline()) {
           this.newGame();
         }
         return;
@@ -308,13 +308,25 @@ export class GameStore {
 
       // Sniffer first (it can reveal or flag), then auto-flag, then
       // auto-chord last so it sees any flags placed earlier in this tick.
-      if (now >= this._snifferDeadline() && this.tryResolveSniffer()) {
+      if (
+        this.upgrades.snifferUnlocked() &&
+        now >= this._snifferDeadline() &&
+        this.tryResolveSniffer()
+      ) {
         this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
       }
-      if (now >= this._autoFlagDeadline() && this.tryAutoFlag()) {
+      if (
+        this.upgrades.autoFlagUnlocked() &&
+        now >= this._autoFlagDeadline() &&
+        this.tryAutoFlag()
+      ) {
         this._autoFlagDeadline.set(now + this.upgrades.autoFlagIntervalMs());
       }
-      if (now >= this._autoChordDeadline() && this.tryAutoChord()) {
+      if (
+        this.upgrades.autoChordUnlocked() &&
+        now >= this._autoChordDeadline() &&
+        this.tryAutoChord()
+      ) {
         this._autoChordDeadline.set(now + this.upgrades.autoChordIntervalMs());
       }
     }, TICK_MS);
@@ -359,8 +371,9 @@ export class GameStore {
   }
 
   /**
-   * Resolves one marked sniffer if any are placed; otherwise auto-sniffs a
-   * random hidden square. Returns whether a square was resolved.
+   * Resolves one marked sniffer if any are placed; otherwise, if the
+   * auto-sniffer add-on is unlocked, resolves a random hidden square instead.
+   * Returns whether a square was resolved.
    */
   private tryResolveSniffer(): boolean {
     const cells = this._cells();
@@ -371,7 +384,9 @@ export class GameStore {
     const candidates =
       snifferIndexes.length > 0
         ? snifferIndexes
-        : cells.filter((cell) => cell.state === 'hidden').map((cell) => cell.index);
+        : this.upgrades.autoSnifferUnlocked()
+          ? cells.filter((cell) => cell.state === 'hidden').map((cell) => cell.index)
+          : [];
 
     if (candidates.length === 0) {
       return false;
@@ -382,16 +397,16 @@ export class GameStore {
     return true;
   }
 
-  /** Flags any logically-deducible mines. Returns whether anything was flagged. */
+  /** Flags one logically-deducible mine, if any. Returns whether one was found. */
   private tryAutoFlag(): boolean {
-    const cells = this._cells();
-    const next = autoFlag(cells, this._config());
-    const changed = next.some((cell, i) => cell.state !== cells[i].state);
-    if (!changed) {
+    const index = findFlaggableMine(this._cells(), this._config());
+    if (index === undefined) {
       return false;
     }
+    const cells = this._cells();
+    const next = cells.slice();
+    next[index] = { ...cells[index], state: 'flagged' };
     this._cells.set(next);
-    this.settle(next);
     return true;
   }
 

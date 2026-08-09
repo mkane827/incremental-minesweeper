@@ -157,46 +157,39 @@ export function flagRemainingMines(cells: readonly Cell[]): Cell[] {
 }
 
 /**
- * Auto-flags any hidden cell whose status as a mine is logically guaranteed
- * by adjacent revealed numbers (i.e. where the number of unrevealed neighbours
- * equals the cell's adjacent mine count).
+ * Finds a hidden cell whose status as a mine is logically guaranteed by an
+ * adjacent revealed number (i.e. where the count of that number's hidden and
+ * flagged neighbours already equals its adjacent-mine count). Returns just
+ * one square - auto-flag resolves a single cell per timer tick, the same as
+ * the sniffer and auto-chord, rather than flagging everything it can deduce
+ * at once. Returns `undefined` if nothing is currently deducible.
  */
-export function autoFlag(cells: readonly Cell[], config: BoardConfig): Cell[] {
-  const current = cells.slice();
-  let changed = true;
+export function findFlaggableMine(cells: readonly Cell[], config: BoardConfig): number | undefined {
+  for (const cell of cells) {
+    if (cell.state !== 'revealed' || cell.isMine || cell.adjacentMines === 0) {
+      continue;
+    }
 
-  while (changed) {
-    changed = false;
-    for (let i = 0; i < current.length; i++) {
-      const cell = current[i];
-      if (cell.state !== 'revealed' || cell.isMine || cell.adjacentMines === 0) {
-        continue;
+    const neighbors = neighborIndexes(cell.index, config);
+    let unrevealedCount = 0;
+    let firstHidden: number | undefined;
+
+    for (const n of neighbors) {
+      const neighborState = cells[n].state;
+      if (neighborState === 'hidden') {
+        unrevealedCount++;
+        firstHidden ??= n;
+      } else if (neighborState === 'flagged') {
+        unrevealedCount++;
       }
+    }
 
-      const neighbors = neighborIndexes(cell.index, config);
-      let unrevealedCount = 0;
-      const hiddenNeighbors: number[] = [];
-
-      for (const n of neighbors) {
-        const neighborState = current[n].state;
-        if (neighborState === 'hidden') {
-          unrevealedCount++;
-          hiddenNeighbors.push(n);
-        } else if (neighborState === 'flagged') {
-          unrevealedCount++;
-        }
-      }
-
-      if (unrevealedCount === cell.adjacentMines && hiddenNeighbors.length > 0) {
-        for (const h of hiddenNeighbors) {
-          current[h] = { ...current[h], state: 'flagged' };
-          changed = true;
-        }
-      }
+    if (unrevealedCount === cell.adjacentMines && firstHidden !== undefined) {
+      return firstHidden;
     }
   }
 
-  return current;
+  return undefined;
 }
 
 /** The board is cleared when every non-mine square has been revealed. */

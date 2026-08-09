@@ -1,8 +1,8 @@
 import { BoardConfig } from '../models/cell';
 import {
-  autoFlag,
   createCells,
   findAvailableChord,
+  findFlaggableMine,
   flagRemainingMines,
   floodReveal,
   isChordReady,
@@ -185,8 +185,8 @@ describe('flagRemainingMines', () => {
   });
 });
 
-describe('autoFlag', () => {
-  it('automatically flags a hidden neighbor when unrevealed neighbors equal adjacentMines', () => {
+describe('findFlaggableMine', () => {
+  it('finds a hidden neighbor when unrevealed neighbors equal adjacentMines', () => {
     // 1x3 board: [mine at 0, safe at 1 with adj=1 (revealed), safe at 2 (revealed)]
     const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
     const cells = createCells(config).map((cell) => {
@@ -195,14 +195,16 @@ describe('autoFlag', () => {
       return { ...cell, state: 'revealed' as const, adjacentMines: 0 };
     });
 
-    const next = autoFlag(cells, config);
-    expect(next[0].state).toBe('flagged');
+    expect(findFlaggableMine(cells, config)).toBe(0);
   });
 
-  it('cascades auto-flagging when a newly flagged cell satisfies another neighbor condition', () => {
+  it('returns only one square even when several are simultaneously deducible', () => {
     // 2x2 board:
     // [mine at 0 (hidden), mine at 1 (hidden)]
     // [safe at 2 (revealed, adj=2), safe at 3 (revealed, adj=1)]
+    // Cell 2's own count already proves both 0 and 1 are mines (its 2 hidden
+    // neighbours == its adjacentMines of 2), but the function returns just the
+    // first one it finds rather than flagging every deducible mine at once.
     const config: BoardConfig = { rows: 2, cols: 2, mines: 2 };
     const cells = createCells(config).map((cell) => {
       if (cell.index === 0 || cell.index === 1) return { ...cell, isMine: true };
@@ -210,9 +212,29 @@ describe('autoFlag', () => {
       return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
     });
 
-    const next = autoFlag(cells, config);
-    expect(next[1].state).toBe('flagged'); // Auto-flagged by Cell 3
-    expect(next[0].state).toBe('flagged'); // Auto-flagged by Cell 2 after Cell 1 is flagged
+    expect(findFlaggableMine(cells, config)).toBe(0);
+  });
+
+  it('returns undefined when nothing is currently deducible', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) =>
+      cell.index === 1 ? { ...cell, state: 'revealed' as const, adjacentMines: 1 } : cell,
+    );
+
+    // Cell 1 has two hidden neighbours (0 and 2) but adjacentMines is only 1 -
+    // not yet narrowed down to a single guaranteed mine.
+    expect(findFlaggableMine(cells, config)).toBeUndefined();
+  });
+
+  it('ignores a satisfied number whose neighbours are already all flagged', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const };
+    });
+
+    expect(findFlaggableMine(cells, config)).toBeUndefined();
   });
 });
 

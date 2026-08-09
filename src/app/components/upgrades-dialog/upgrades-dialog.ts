@@ -80,6 +80,26 @@ export class UpgradesDialog {
     this.upgrades.buyAutoFlagSpeed();
   }
 
+  protected buySnifferUnlock(): void {
+    this.upgrades.buySnifferUnlock();
+  }
+
+  protected buyAutoFlagUnlock(): void {
+    this.upgrades.buyAutoFlagUnlock();
+  }
+
+  protected buyAutoChordUnlock(): void {
+    this.upgrades.buyAutoChordUnlock();
+  }
+
+  protected buyAutoRestartUnlock(): void {
+    this.upgrades.buyAutoRestartUnlock();
+  }
+
+  protected buyAutoSnifferUnlock(): void {
+    this.upgrades.buyAutoSnifferUnlock();
+  }
+
   protected close(): void {
     this.dialogRef.close();
   }

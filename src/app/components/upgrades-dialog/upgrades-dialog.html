@@ -74,95 +74,193 @@
     </button>
   </div>
 
-  <div class="upgrade">
-    <div class="upgrade-info">
-      <span class="upgrade-name">Sniffer speed</span>
-      <span class="upgrade-detail">
-        Resolves every {{ snifferSeconds() }}s &middot; next will be {{ nextSnifferSeconds() }}s
-      </span>
-    </div>
-    @if (upgrades.isSnifferSpeedMaxed()) {
-      <button matButton="filled" type="button" disabled>MAX</button>
-    } @else {
+  @if (!upgrades.snifferUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Unlock sniffer (🐶)</span>
+        <span class="upgrade-detail">
+          Place a marker on a hidden square; it resolves safely once its timer fires
+        </span>
+      </div>
       <button
         matButton="filled"
         type="button"
-        [disabled]="!upgrades.canAffordSnifferSpeed()"
-        (click)="buySnifferSpeed()"
+        [disabled]="!upgrades.canAffordSnifferUnlock()"
+        (click)="buySnifferUnlock()"
       >
         <mat-icon aria-hidden="true">diamond</mat-icon>
-        {{ upgrades.snifferSpeedCost() }}
+        {{ upgrades.snifferUnlockCost }}
       </button>
-    }
-  </div>
+    </div>
+  } @else {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Sniffer speed</span>
+        <span class="upgrade-detail">
+          Resolves every {{ snifferSeconds() }}s &middot; next will be {{ nextSnifferSeconds() }}s
+        </span>
+      </div>
+      @if (upgrades.isSnifferSpeedMaxed()) {
+        <button matButton="filled" type="button" disabled>MAX</button>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!upgrades.canAffordSnifferSpeed()"
+          (click)="buySnifferSpeed()"
+        >
+          <mat-icon aria-hidden="true">diamond</mat-icon>
+          {{ upgrades.snifferSpeedCost() }}
+        </button>
+      }
+    </div>
 
-  <div class="upgrade">
-    <div class="upgrade-info">
-      <span class="upgrade-name">Auto-flag speed</span>
-      <span class="upgrade-detail">
-        Resolves every {{ autoFlagSeconds() }}s &middot; next will be {{ nextAutoFlagSeconds() }}s
-      </span>
-    </div>
-    @if (upgrades.isAutoFlagSpeedMaxed()) {
-      <button matButton="filled" type="button" disabled>MAX</button>
-    } @else {
-      <button
-        matButton="filled"
-        type="button"
-        [disabled]="!upgrades.canAffordAutoFlagSpeed()"
-        (click)="buyAutoFlagSpeed()"
-      >
-        <mat-icon aria-hidden="true">diamond</mat-icon>
-        {{ upgrades.autoFlagSpeedCost() }}
-      </button>
+    @if (!upgrades.autoSnifferUnlocked()) {
+      <div class="upgrade">
+        <div class="upgrade-info">
+          <span class="upgrade-name">Unlock autosniffer</span>
+          <span class="upgrade-detail">
+            If nothing's marked when the timer fires, resolve a random hidden square instead
+          </span>
+        </div>
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!upgrades.canAffordAutoSnifferUnlock()"
+          (click)="buyAutoSnifferUnlock()"
+        >
+          <mat-icon aria-hidden="true">diamond</mat-icon>
+          {{ upgrades.autoSnifferUnlockCost }}
+        </button>
+      </div>
     }
-  </div>
+  }
 
-  <div class="upgrade">
-    <div class="upgrade-info">
-      <span class="upgrade-name">Auto-chord speed</span>
-      <span class="upgrade-detail">
-        Resolves every {{ autoChordSeconds() }}s &middot; next will be
-        {{ nextAutoChordSeconds() }}s
-      </span>
-    </div>
-    @if (upgrades.isAutoChordSpeedMaxed()) {
-      <button matButton="filled" type="button" disabled>MAX</button>
-    } @else {
+  @if (!upgrades.autoFlagUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Unlock auto-flag (🚩)</span>
+        <span class="upgrade-detail">
+          On a timer, flags one hidden square per tick that's logically guaranteed to be a mine
+        </span>
+      </div>
       <button
         matButton="filled"
         type="button"
-        [disabled]="!upgrades.canAffordAutoChordSpeed()"
-        (click)="buyAutoChordSpeed()"
+        [disabled]="!upgrades.canAffordAutoFlagUnlock()"
+        (click)="buyAutoFlagUnlock()"
       >
         <mat-icon aria-hidden="true">diamond</mat-icon>
-        {{ upgrades.autoChordSpeedCost() }}
+        {{ upgrades.autoFlagUnlockCost }}
       </button>
-    }
-  </div>
+    </div>
+  } @else {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Auto-flag speed</span>
+        <span class="upgrade-detail">
+          Resolves every {{ autoFlagSeconds() }}s &middot; next will be {{ nextAutoFlagSeconds() }}s
+        </span>
+      </div>
+      @if (upgrades.isAutoFlagSpeedMaxed()) {
+        <button matButton="filled" type="button" disabled>MAX</button>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!upgrades.canAffordAutoFlagSpeed()"
+          (click)="buyAutoFlagSpeed()"
+        >
+          <mat-icon aria-hidden="true">diamond</mat-icon>
+          {{ upgrades.autoFlagSpeedCost() }}
+        </button>
+      }
+    </div>
+  }
 
-  <div class="upgrade">
-    <div class="upgrade-info">
-      <span class="upgrade-name">Restart speed</span>
-      <span class="upgrade-detail">
-        Restarts {{ autoRestartSeconds() }}s after game over &middot; next will be
-        {{ nextAutoRestartSeconds() }}s
-      </span>
-    </div>
-    @if (upgrades.isAutoRestartSpeedMaxed()) {
-      <button matButton="filled" type="button" disabled>MAX</button>
-    } @else {
+  @if (!upgrades.autoChordUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Unlock auto-chord (🤖)</span>
+        <span class="upgrade-detail">
+          On a timer, chords one revealed number per tick once its flags match
+        </span>
+      </div>
       <button
         matButton="filled"
         type="button"
-        [disabled]="!upgrades.canAffordAutoRestartSpeed()"
-        (click)="buyAutoRestartSpeed()"
+        [disabled]="!upgrades.canAffordAutoChordUnlock()"
+        (click)="buyAutoChordUnlock()"
       >
         <mat-icon aria-hidden="true">diamond</mat-icon>
-        {{ upgrades.autoRestartSpeedCost() }}
+        {{ upgrades.autoChordUnlockCost }}
       </button>
-    }
-  </div>
+    </div>
+  } @else {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Auto-chord speed</span>
+        <span class="upgrade-detail">
+          Resolves every {{ autoChordSeconds() }}s &middot; next will be
+          {{ nextAutoChordSeconds() }}s
+        </span>
+      </div>
+      @if (upgrades.isAutoChordSpeedMaxed()) {
+        <button matButton="filled" type="button" disabled>MAX</button>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!upgrades.canAffordAutoChordSpeed()"
+          (click)="buyAutoChordSpeed()"
+        >
+          <mat-icon aria-hidden="true">diamond</mat-icon>
+          {{ upgrades.autoChordSpeedCost() }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (!upgrades.autoRestartUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Unlock auto-restart (🔁)</span>
+        <span class="upgrade-detail">Starts a new game on its own once a round ends</span>
+      </div>
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!upgrades.canAffordAutoRestartUnlock()"
+        (click)="buyAutoRestartUnlock()"
+      >
+        <mat-icon aria-hidden="true">diamond</mat-icon>
+        {{ upgrades.autoRestartUnlockCost }}
+      </button>
+    </div>
+  } @else {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Restart speed</span>
+        <span class="upgrade-detail">
+          Restarts {{ autoRestartSeconds() }}s after game over &middot; next will be
+          {{ nextAutoRestartSeconds() }}s
+        </span>
+      </div>
+      @if (upgrades.isAutoRestartSpeedMaxed()) {
+        <button matButton="filled" type="button" disabled>MAX</button>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!upgrades.canAffordAutoRestartSpeed()"
+          (click)="buyAutoRestartSpeed()"
+        >
+          <mat-icon aria-hidden="true">diamond</mat-icon>
+          {{ upgrades.autoRestartSpeedCost() }}
+        </button>
+      }
+    </div>
+  }
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
