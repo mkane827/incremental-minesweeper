@@ -22,6 +22,7 @@ import { KeybindingsStore } from '../../services/keybindings-store';
     tabindex: '0',
     '[class.is-revealed]': 'cell().state === "revealed"',
     '[class.is-flagged]': 'cell().state === "flagged"',
+    '[class.is-auto-flagged]': 'cell().autoFlagged',
     '[class.is-exploded]': 'cell().exploded',
     '[class.is-wrong]': 'cell().wrongFlag',
     '[class.is-chord-ready]': 'chordReady()',
@@ -61,7 +62,7 @@ export class CellComponent {
 
     switch (cell.state) {
       case 'flagged':
-        return `Flagged, ${position}`;
+        return cell.autoFlagged ? `Auto-flagged, ${position}` : `Flagged, ${position}`;
       case 'hidden':
         return cell.hasSniffer ? `Sniffer placed, ${position}` : `Hidden, ${position}`;
       default:

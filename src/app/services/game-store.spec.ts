@@ -222,7 +222,7 @@ describe('GameStore', () => {
     expect(store.cells()[1].state).toBe('flagged');
   });
 
-  it('does not auto-flag a logically-deducible mine immediately after a reveal', () => {
+  it('does not auto-flag a logically-deducible mine while the mechanic is still locked', () => {
     const store = createStore();
     // 1x6 board so cells 2-5 stay hidden and unrelated to the deduction below -
     // otherwise clearing the board would trigger the separate win-time
@@ -232,36 +232,59 @@ describe('GameStore', () => {
     store.reveal(0); // mine forced onto index 1; cell 0's only neighbour is already narrowed to it
 
     // Cell 0 is now logically satisfied (its one hidden neighbour must be the
-    // mine), but auto-flag only runs on its own timer, not inline after a move.
+    // mine), but auto-flag hasn't been unlocked, so nothing happens.
     expect(store.status()).toBe('playing'); // not won - cells 2-5 are still hidden
     expect(store.cells()[1].state).toBe('hidden');
   });
 
-  it('flags a logically-deducible mine once the auto-flag timer elapses', () => {
-    // Speed up auto-flag past the sniffer's default interval so this test
-    // isolates auto-flag's own deduction from the sniffer's random pick,
-    // which would otherwise land on the same (only) hidden cell first.
+  it('flags a logically-deducible mine immediately, the instant it becomes provable', () => {
     const upgrades = TestBed.inject(UpgradesStore);
     const currency = TestBed.inject(CurrencyStore);
     currency.earn(150);
     upgrades.buyAutoFlagUnlock();
-    currency.earn(20);
-    upgrades.buyAutoFlagSpeed(); // 10s -> 9s
 
     const store = createStore();
     store.newGame({ rows: 1, cols: 6, mines: 1 });
 
     store.reveal(0); // mine forced onto index 1; cell 0 is already logically satisfied
-    expect(store.cells()[1].state).toBe('hidden');
-
-    vi.advanceTimersByTime(9000); // auto-flag's interval elapses; sniffer's (10s) has not
 
     expect(store.cells()[1].state).toBe('flagged');
+    expect(store.cells()[1].autoFlagged).toBe(true);
     expect(store.status()).toBe('playing'); // still not won - cells 2-5 remain hidden
-    expect(store.secondsUntilSniff()).toBeGreaterThan(0);
   });
 
-  it('flags only one mine per tick even when several are simultaneously deducible', () => {
+  it('does not let the player remove a flag auto-flag placed', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(150);
+    upgrades.buyAutoFlagUnlock();
+
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 6, mines: 1 });
+    store.reveal(0); // mine forced onto index 1; auto-flag places the flag immediately
+
+    expect(store.cells()[1].state).toBe('flagged');
+    expect(store.cells()[1].autoFlagged).toBe(true);
+
+    store.toggleFlag(1); // misclick attempt - should be a no-op
+
+    expect(store.cells()[1].state).toBe('flagged');
+    expect(store.cells()[1].autoFlagged).toBe(true);
+  });
+
+  it('lets the player remove their own manually-placed flag normally', () => {
+    const store = createStore();
+    store.newGame({ rows: 2, cols: 2, mines: 1 });
+
+    store.toggleFlag(0);
+    expect(store.cells()[0].state).toBe('flagged');
+    expect(store.cells()[0].autoFlagged).toBe(false);
+
+    store.toggleFlag(0);
+    expect(store.cells()[0].state).toBe('hidden');
+  });
+
+  it('flags every currently-deducible mine at once, in a single cascading pass', () => {
     const upgrades = TestBed.inject(UpgradesStore);
     const currency = TestBed.inject(CurrencyStore);
     currency.earn(150);
@@ -277,18 +300,49 @@ describe('GameStore', () => {
     store.reveal(5);
     store.reveal(4);
 
-    expect(store.cells()[0].state).toBe('hidden');
+    // Both mines flagged in the very same reveal - no waiting for a second
+    // move to pick up the one that only became provable once the first was
+    // flagged (flagging cell 0 completes cell 4's remaining deduction).
+    expect(store.cells()[0].state).toBe('flagged');
+    expect(store.cells()[0].autoFlagged).toBe(true);
+    expect(store.cells()[1].state).toBe('flagged');
+    expect(store.cells()[1].autoFlagged).toBe(true);
+  });
+
+  it('does nothing while switched off, then catches up immediately once switched back on', () => {
+    const upgrades = TestBed.inject(UpgradesStore);
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(150);
+    upgrades.buyAutoFlagUnlock();
+    upgrades.setAutoFlagEnabled(false);
+
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 6, mines: 1 });
+    store.reveal(0); // mine forced onto index 1; cell 0 is already logically satisfied
+
+    expect(store.cells()[1].state).toBe('hidden'); // switched off - no auto-flag
+
+    upgrades.setAutoFlagEnabled(true);
+    TestBed.inject(ApplicationRef).tick(); // flush the reactive "just turned on" effect
+
+    expect(store.cells()[1].state).toBe('flagged'); // caught up the instant it was switched back on
+    expect(store.cells()[1].autoFlagged).toBe(true);
+  });
+
+  it('retroactively flags an already-deducible mine the moment the unlock is bought', () => {
+    const currency = TestBed.inject(CurrencyStore);
+    const store = createStore();
+    store.newGame({ rows: 1, cols: 6, mines: 1 });
+    store.reveal(0); // mine forced onto index 1; already logically satisfied, but locked
+
     expect(store.cells()[1].state).toBe('hidden');
 
-    vi.advanceTimersByTime(10000); // one auto-flag tick
+    const upgrades = TestBed.inject(UpgradesStore);
+    currency.earn(150);
+    upgrades.buyAutoFlagUnlock();
+    TestBed.inject(ApplicationRef).tick(); // flush the reactive "just unlocked" effect
 
-    expect(store.cells()[0].state).toBe('flagged');
-    expect(store.cells()[1].state).toBe('hidden'); // not cascaded to the second mine yet
-    expect(store.status()).toBe('playing');
-
-    vi.advanceTimersByTime(10000); // a second tick picks up the now-remaining deduction
-
-    expect(store.cells()[1].state).toBe('flagged');
+    expect(store.cells()[1].state).toBe('flagged'); // caught up on purchase, no extra move needed
   });
 
   it('stays completely inert while sniffer, auto-flag, auto-chord, and auto-restart are all locked', () => {

@@ -8,7 +8,7 @@ const STORAGE_KEY = 'ms-prestige';
  * number of prestige points, sqrt-scaled so every successive point costs
  * more than the last.
  */
-const LIFETIME_MINES_PER_POINT = 2000;
+const LIFETIME_MINES_PER_POINT = 800;
 
 export function prestigePointsForLifetimeMines(lifetimeMines: number): number {
   return Math.floor(Math.sqrt(lifetimeMines / LIFETIME_MINES_PER_POINT));

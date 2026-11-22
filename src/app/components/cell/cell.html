@@ -1,7 +1,7 @@
 @let c = cell();
 
 @if (c.state === 'flagged') {
-  <mat-icon class="glyph flag">flag</mat-icon>
+  <mat-icon class="glyph flag" [class.is-auto]="c.autoFlagged">flag</mat-icon>
   @if (c.wrongFlag) {
     <mat-icon class="glyph strike">close</mat-icon>
   }

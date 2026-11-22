@@ -1,5 +1,6 @@
 import { BoardConfig } from '../models/cell';
 import {
+  autoFlagAll,
   createCells,
   findAvailableChord,
   findFlaggableMine,
@@ -235,6 +236,52 @@ describe('findFlaggableMine', () => {
     });
 
     expect(findFlaggableMine(cells, config)).toBeUndefined();
+  });
+});
+
+describe('autoFlagAll', () => {
+  it('flags every currently-deducible mine in a single pass, looping to a fixed point', () => {
+    // Same 2x2 board as the findFlaggableMine test above: mines at 0 and 1
+    // (hidden), cell 2 revealed with adjacentMines=2 (its 2 hidden neighbours
+    // 0 and 1 already prove both are mines), cell 3 revealed with
+    // adjacentMines=1. findFlaggableMine alone would return just index 0;
+    // autoFlagAll loops until nothing more is deducible, so it also picks up
+    // index 1 once flagging 0 leaves it as the sole remaining hidden neighbour.
+    const config: BoardConfig = { rows: 2, cols: 2, mines: 2 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0 || cell.index === 1) return { ...cell, isMine: true };
+      if (cell.index === 2) return { ...cell, state: 'revealed' as const, adjacentMines: 2 };
+      return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+    });
+
+    const next = autoFlagAll(cells, config);
+
+    expect(next[0]).toMatchObject({ state: 'flagged', autoFlagged: true });
+    expect(next[1]).toMatchObject({ state: 'flagged', autoFlagged: true });
+  });
+
+  it('returns the input unchanged when nothing is currently deducible', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) =>
+      cell.index === 1 ? { ...cell, state: 'revealed' as const, adjacentMines: 1 } : cell,
+    );
+
+    const next = autoFlagAll(cells, config);
+
+    expect(next).toBe(cells); // same reference - nothing to do
+  });
+
+  it('does not touch a mine the player already flagged themselves', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const, adjacentMines: 0 };
+    });
+
+    const next = autoFlagAll(cells, config);
+
+    expect(next[0]).toMatchObject({ state: 'flagged', autoFlagged: false }); // untouched, still a manual flag
   });
 });
 

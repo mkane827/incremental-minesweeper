@@ -13,15 +13,6 @@
     </div>
   }
 
-  @if (upgrades.autoFlagUnlocked()) {
-    <div class="readout" aria-label="Next auto-flag attempt in seconds">
-      <span class="auto-flag-icon" aria-hidden="true">🚩</span>
-      <span class="digits" [class.is-hidden]="secondsUntilAutoFlag() === 0">
-        {{ autoFlagText() }}
-      </span>
-    </div>
-  }
-
   @if (upgrades.autoChordUnlocked()) {
     <div class="readout" aria-label="Next auto-chord attempt in seconds">
       <span class="auto-chord-icon" aria-hidden="true">🤖</span>

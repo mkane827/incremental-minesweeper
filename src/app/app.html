@@ -47,6 +47,16 @@
       <ms-board />
     </div>
 
+    @if (upgrades.autoFlagUnlocked()) {
+      <mat-slide-toggle
+        class="auto-flag-toggle"
+        [checked]="upgrades.autoFlagEnabled()"
+        (change)="onAutoFlagToggle($event)"
+      >
+        Auto-flag (🚩)
+      </mat-slide-toggle>
+    }
+
     @if (banner(); as info) {
       <button
         type="button"

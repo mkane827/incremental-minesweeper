@@ -68,6 +68,20 @@
   block-size: calc(var(--ms-cell-size) * 0.68);
 }
 
+// Auto-flagged (set by the auto-flag timer, not the player): distinct colour
+// so it reads as different at a glance, and not player-removable.
+.flag.is-auto {
+  color: var(--mat-sys-tertiary);
+}
+
+:host(.is-auto-flagged) {
+  cursor: default;
+}
+
+:host(.is-auto-flagged:hover) {
+  background: var(--mat-sys-surface-container-highest);
+}
+
 .sniffer {
   font-size: calc(var(--ms-cell-size) * 0.65);
   line-height: 1;

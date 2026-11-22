@@ -9,16 +9,16 @@ function createStore(): PrestigeStore {
 describe('prestigePointsForLifetimeMines', () => {
   it('is zero below the first threshold', () => {
     expect(prestigePointsForLifetimeMines(0)).toBe(0);
-    expect(prestigePointsForLifetimeMines(1999)).toBe(0);
+    expect(prestigePointsForLifetimeMines(799)).toBe(0);
   });
 
-  it('reaches 1 point at 2000 lifetime mines', () => {
-    expect(prestigePointsForLifetimeMines(2000)).toBe(1);
+  it('reaches 1 point at 800 lifetime mines', () => {
+    expect(prestigePointsForLifetimeMines(800)).toBe(1);
   });
 
   it('scales down as a square root, needing more mines per additional point', () => {
-    expect(prestigePointsForLifetimeMines(8000)).toBe(2);
-    expect(prestigePointsForLifetimeMines(18000)).toBe(3);
+    expect(prestigePointsForLifetimeMines(3200)).toBe(2);
+    expect(prestigePointsForLifetimeMines(7200)).toBe(3);
   });
 });
 
@@ -61,10 +61,10 @@ describe('PrestigeStore', () => {
   it('grants further points once more lifetime mines are earned', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(2000);
+    currency.earn(800); // 1 point
     store.claimAvailableGain();
 
-    currency.earn(6000); // lifetime now 8000 -> 2 total points, 1 already claimed
+    currency.earn(2400); // lifetime now 3200 -> 2 total points, 1 already claimed
     expect(store.availableGain()).toBe(1);
     expect(store.claimAvailableGain()).toBe(1);
     expect(store.points()).toBe(2);
@@ -104,7 +104,7 @@ describe('PrestigeStore', () => {
   it('blocks the permanent autosniffer until the permanent sniffer is owned', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(50000); // sqrt(25) = 5 points
+    currency.earn(20000); // sqrt(25) = 5 points
     store.claimAvailableGain();
     expect(store.points()).toBe(5);
 
@@ -125,7 +125,7 @@ describe('PrestigeStore', () => {
   it('persists points and permanent unlocks', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
-    currency.earn(50000); // 5 points
+    currency.earn(20000); // 5 points
     store.claimAvailableGain();
     store.buyPermanentSniffer(); // -1
     store.buyPermanentAutoFlag(); // -2

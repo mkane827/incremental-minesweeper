@@ -141,7 +141,8 @@
       <div class="upgrade-info">
         <span class="upgrade-name">Unlock auto-flag (🚩)</span>
         <span class="upgrade-detail">
-          On a timer, flags one hidden square per tick that's logically guaranteed to be a mine
+          Instantly flags every hidden square that's logically guaranteed to be a mine &middot;
+          toggle on/off below the board
         </span>
       </div>
       <button
@@ -153,28 +154,6 @@
         <mat-icon aria-hidden="true">diamond</mat-icon>
         {{ upgrades.autoFlagUnlockCost }}
       </button>
-    </div>
-  } @else {
-    <div class="upgrade">
-      <div class="upgrade-info">
-        <span class="upgrade-name">Auto-flag speed</span>
-        <span class="upgrade-detail">
-          Resolves every {{ autoFlagSeconds() }}s &middot; next will be {{ nextAutoFlagSeconds() }}s
-        </span>
-      </div>
-      @if (upgrades.isAutoFlagSpeedMaxed()) {
-        <button matButton="filled" type="button" disabled>MAX</button>
-      } @else {
-        <button
-          matButton="filled"
-          type="button"
-          [disabled]="!upgrades.canAffordAutoFlagSpeed()"
-          (click)="buyAutoFlagSpeed()"
-        >
-          <mat-icon aria-hidden="true">diamond</mat-icon>
-          {{ upgrades.autoFlagSpeedCost() }}
-        </button>
-      }
     </div>
   }
 

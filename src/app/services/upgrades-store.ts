@@ -60,15 +60,14 @@ const AUTO_CHORD_SPEED_COST_GROWTH = 1.25;
 const AUTO_RESTART_SPEED_BASE_COST = 20;
 const AUTO_RESTART_SPEED_COST_GROWTH = 1.25;
 
-const AUTO_FLAG_SPEED_BASE_COST = 20;
-const AUTO_FLAG_SPEED_COST_GROWTH = 1.25;
-
 /**
  * Each automation is inert until its one-time unlock is bought - the timer
  * upgrades above only matter, and only become purchasable, once the
  * matching automation is unlocked. Auto-sniffer is a further, pricier
  * unlock on top of the sniffer unlock: without it, an unmarked sniffer
- * timer just waits instead of picking a random hidden square.
+ * timer just waits instead of picking a random hidden square. Auto-flag has
+ * no timer/speed track of its own - it's a single unlock that flags every
+ * currently-deducible mine immediately, toggleable on/off once bought.
  */
 export const SNIFFER_UNLOCK_COST = 100;
 export const AUTO_FLAG_UNLOCK_COST = 150;
@@ -84,9 +83,9 @@ interface StoredUpgrades {
   readonly snifferSpeed?: number;
   readonly autoChordSpeed?: number;
   readonly autoRestartSpeed?: number;
-  readonly autoFlagSpeed?: number;
   readonly snifferUnlocked?: boolean;
   readonly autoFlagUnlocked?: boolean;
+  readonly autoFlagEnabled?: boolean;
   readonly autoChordUnlocked?: boolean;
   readonly autoRestartUnlocked?: boolean;
   readonly autoSnifferUnlocked?: boolean;
@@ -99,9 +98,9 @@ interface LoadedUpgrades {
   readonly snifferSpeed: number;
   readonly autoChordSpeed: number;
   readonly autoRestartSpeed: number;
-  readonly autoFlagSpeed: number;
   readonly snifferUnlocked: boolean;
   readonly autoFlagUnlocked: boolean;
+  readonly autoFlagEnabled: boolean;
   readonly autoChordUnlocked: boolean;
   readonly autoRestartUnlocked: boolean;
   readonly autoSnifferUnlocked: boolean;
@@ -120,9 +119,9 @@ export class UpgradesStore {
   private readonly _snifferSpeedLevel = signal(this.stored.snifferSpeed);
   private readonly _autoChordSpeedLevel = signal(this.stored.autoChordSpeed);
   private readonly _autoRestartSpeedLevel = signal(this.stored.autoRestartSpeed);
-  private readonly _autoFlagSpeedLevel = signal(this.stored.autoFlagSpeed);
   private readonly _snifferUnlocked = signal(this.stored.snifferUnlocked);
   private readonly _autoFlagUnlocked = signal(this.stored.autoFlagUnlocked);
+  private readonly _autoFlagEnabled = signal(this.stored.autoFlagEnabled);
   private readonly _autoChordUnlocked = signal(this.stored.autoChordUnlocked);
   private readonly _autoRestartUnlocked = signal(this.stored.autoRestartUnlocked);
   private readonly _autoSnifferUnlocked = signal(this.stored.autoSnifferUnlocked);
@@ -133,7 +132,8 @@ export class UpgradesStore {
   readonly snifferSpeedLevel = this._snifferSpeedLevel.asReadonly();
   readonly autoChordSpeedLevel = this._autoChordSpeedLevel.asReadonly();
   readonly autoRestartSpeedLevel = this._autoRestartSpeedLevel.asReadonly();
-  readonly autoFlagSpeedLevel = this._autoFlagSpeedLevel.asReadonly();
+  /** Player on/off preference - only meaningful once `autoFlagUnlocked` is true. Defaults on. */
+  readonly autoFlagEnabled = this._autoFlagEnabled.asReadonly();
   /** True once bought with mines OR permanently unlocked with prestige points - either way, the mechanic is live. */
   readonly snifferUnlocked = computed(
     () => this._snifferUnlocked() || this.prestige.permanentSnifferUnlocked(),
@@ -172,16 +172,14 @@ export class UpgradesStore {
   );
   readonly isMineCapacityMaxed = computed(() => this.maxMines() >= this.mineDensityCapMines());
 
-  /** How long the sniffer, auto-chord, auto-restart, and auto-flag timers take once armed. */
+  /** How long the sniffer, auto-chord, and auto-restart timers take once armed. */
   readonly snifferIntervalMs = computed(() => timerIntervalMs(this._snifferSpeedLevel()));
   readonly autoChordIntervalMs = computed(() => timerIntervalMs(this._autoChordSpeedLevel()));
   readonly autoRestartIntervalMs = computed(() => timerIntervalMs(this._autoRestartSpeedLevel()));
-  readonly autoFlagIntervalMs = computed(() => timerIntervalMs(this._autoFlagSpeedLevel()));
 
   readonly isSnifferSpeedMaxed = computed(() => this.snifferIntervalMs() <= MIN_TIMER_MS);
   readonly isAutoChordSpeedMaxed = computed(() => this.autoChordIntervalMs() <= MIN_TIMER_MS);
   readonly isAutoRestartSpeedMaxed = computed(() => this.autoRestartIntervalMs() <= MIN_TIMER_MS);
-  readonly isAutoFlagSpeedMaxed = computed(() => this.autoFlagIntervalMs() <= MIN_TIMER_MS);
 
   readonly mineCapacityCost = computed(() =>
     Math.round(MINE_CAPACITY_BASE_COST * MINE_CAPACITY_COST_GROWTH ** this._mineCapacityLevel()),
@@ -206,10 +204,6 @@ export class UpgradesStore {
         AUTO_RESTART_SPEED_COST_GROWTH ** this._autoRestartSpeedLevel(),
     ),
   );
-  readonly autoFlagSpeedCost = computed(() =>
-    Math.round(AUTO_FLAG_SPEED_BASE_COST * AUTO_FLAG_SPEED_COST_GROWTH ** this._autoFlagSpeedLevel()),
-  );
-
   readonly canAffordMineCapacity = computed(
     () => !this.isMineCapacityMaxed() && this.currency.mines() >= this.mineCapacityCost(),
   );
@@ -233,13 +227,6 @@ export class UpgradesStore {
       !this.isAutoRestartSpeedMaxed() &&
       this.currency.mines() >= this.autoRestartSpeedCost(),
   );
-  readonly canAffordAutoFlagSpeed = computed(
-    () =>
-      this.autoFlagUnlocked() &&
-      !this.isAutoFlagSpeedMaxed() &&
-      this.currency.mines() >= this.autoFlagSpeedCost(),
-  );
-
   readonly canAffordSnifferUnlock = computed(
     () => !this.snifferUnlocked() && this.currency.mines() >= SNIFFER_UNLOCK_COST,
   );
@@ -326,16 +313,9 @@ export class UpgradesStore {
     this.persist();
   }
 
-  /** Spends the current cost and speeds up the auto-flag timer, if unlocked and affordable. */
-  buyAutoFlagSpeed(): void {
-    if (
-      !this.autoFlagUnlocked() ||
-      this.isAutoFlagSpeedMaxed() ||
-      !this.currency.spend(this.autoFlagSpeedCost())
-    ) {
-      return;
-    }
-    this._autoFlagSpeedLevel.update((value) => value + 1);
+  /** Turns the (already-unlocked) auto-flag mechanic on or off. */
+  setAutoFlagEnabled(enabled: boolean): void {
+    this._autoFlagEnabled.set(enabled);
     this.persist();
   }
 
@@ -401,9 +381,9 @@ export class UpgradesStore {
     this._snifferSpeedLevel.set(0);
     this._autoChordSpeedLevel.set(0);
     this._autoRestartSpeedLevel.set(0);
-    this._autoFlagSpeedLevel.set(0);
     this._snifferUnlocked.set(false);
     this._autoFlagUnlocked.set(false);
+    this._autoFlagEnabled.set(true);
     this._autoChordUnlocked.set(false);
     this._autoRestartUnlocked.set(false);
     this._autoSnifferUnlocked.set(false);
@@ -418,9 +398,9 @@ export class UpgradesStore {
       snifferSpeed: this._snifferSpeedLevel(),
       autoChordSpeed: this._autoChordSpeedLevel(),
       autoRestartSpeed: this._autoRestartSpeedLevel(),
-      autoFlagSpeed: this._autoFlagSpeedLevel(),
       snifferUnlocked: this._snifferUnlocked(),
       autoFlagUnlocked: this._autoFlagUnlocked(),
+      autoFlagEnabled: this._autoFlagEnabled(),
       autoChordUnlocked: this._autoChordUnlocked(),
       autoRestartUnlocked: this._autoRestartUnlocked(),
       autoSnifferUnlocked: this._autoSnifferUnlocked(),
@@ -436,9 +416,9 @@ export class UpgradesStore {
       snifferSpeed: 0,
       autoChordSpeed: 0,
       autoRestartSpeed: 0,
-      autoFlagSpeed: 0,
       snifferUnlocked: false,
       autoFlagUnlocked: false,
+      autoFlagEnabled: true,
       autoChordUnlocked: false,
       autoRestartUnlocked: false,
       autoSnifferUnlocked: false,
@@ -457,9 +437,9 @@ export class UpgradesStore {
       const snifferSpeed = Number(parsed.snifferSpeed);
       const autoChordSpeed = Number(parsed.autoChordSpeed);
       const autoRestartSpeed = Number(parsed.autoRestartSpeed);
-      const autoFlagSpeed = Number(parsed.autoFlagSpeed);
       const snifferUnlocked = parsed.snifferUnlocked === true;
       const autoFlagUnlocked = parsed.autoFlagUnlocked === true;
+      const autoFlagEnabled = parsed.autoFlagEnabled !== false;
       const autoChordUnlocked = parsed.autoChordUnlocked === true;
       const autoRestartUnlocked = parsed.autoRestartUnlocked === true;
       const autoSnifferUnlocked = snifferUnlocked && parsed.autoSnifferUnlocked === true;
@@ -479,9 +459,9 @@ export class UpgradesStore {
         autoChordSpeed: Number.isFinite(autoChordSpeed) && autoChordSpeed >= 0 ? autoChordSpeed : 0,
         autoRestartSpeed:
           Number.isFinite(autoRestartSpeed) && autoRestartSpeed >= 0 ? autoRestartSpeed : 0,
-        autoFlagSpeed: Number.isFinite(autoFlagSpeed) && autoFlagSpeed >= 0 ? autoFlagSpeed : 0,
         snifferUnlocked,
         autoFlagUnlocked,
+        autoFlagEnabled,
         autoChordUnlocked,
         autoRestartUnlocked,
         autoSnifferUnlocked,

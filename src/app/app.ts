@@ -4,6 +4,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSlideToggle, MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Board } from './components/board/board';
 import { GameHeader } from './components/game-header/game-header';
 import { PrestigeDialog } from './components/prestige-dialog/prestige-dialog';
@@ -13,6 +14,7 @@ import { CurrencyStore } from './services/currency-store';
 import { GameStore } from './services/game-store';
 import { KeybindingsStore } from './services/keybindings-store';
 import { PrestigeStore } from './services/prestige-store';
+import { UpgradesStore } from './services/upgrades-store';
 
 @Component({
   selector: 'ms-root',
@@ -21,6 +23,7 @@ import { PrestigeStore } from './services/prestige-store';
     MatIcon,
     MatIconButton,
     MatTooltip,
+    MatSlideToggle,
     Board,
     GameHeader,
   ],
@@ -35,6 +38,7 @@ export class App {
 
   protected readonly currency = inject(CurrencyStore);
   protected readonly prestige = inject(PrestigeStore);
+  protected readonly upgrades = inject(UpgradesStore);
   protected readonly status = this.store.status;
 
   protected readonly keyHint = computed(
@@ -58,6 +62,10 @@ export class App {
 
   protected reset(): void {
     this.store.newGame();
+  }
+
+  protected onAutoFlagToggle(event: MatSlideToggleChange): void {
+    this.upgrades.setAutoFlagEnabled(event.checked);
   }
 
   protected readonly banner = computed(() => {

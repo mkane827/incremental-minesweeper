@@ -18,6 +18,8 @@ export interface Cell {
   readonly wrongFlag: boolean;
   /** Whether a sniffer is active on this hidden square. */
   readonly hasSniffer?: boolean;
+  /** A flag placed by the auto-flag timer, not the player - locked in and not player-removable. */
+  readonly autoFlagged: boolean;
 }
 
 export interface BoardConfig {

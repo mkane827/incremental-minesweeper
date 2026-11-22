@@ -47,11 +47,6 @@ export class UpgradesDialog {
     () => timerIntervalMs(this.upgrades.autoRestartSpeedLevel() + 1) / 1000,
   );
 
-  protected readonly autoFlagSeconds = computed(() => this.upgrades.autoFlagIntervalMs() / 1000);
-  protected readonly nextAutoFlagSeconds = computed(
-    () => timerIntervalMs(this.upgrades.autoFlagSpeedLevel() + 1) / 1000,
-  );
-
   protected buyMineCapacity(): void {
     this.upgrades.buyMineCapacity();
   }
@@ -74,10 +69,6 @@ export class UpgradesDialog {
 
   protected buyAutoRestartSpeed(): void {
     this.upgrades.buyAutoRestartSpeed();
-  }
-
-  protected buyAutoFlagSpeed(): void {
-    this.upgrades.buyAutoFlagSpeed();
   }
 
   protected buySnifferUnlock(): void {

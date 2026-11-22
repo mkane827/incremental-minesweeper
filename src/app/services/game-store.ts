@@ -1,9 +1,9 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { BoardConfig, Cell, GameStatus } from '../models/cell';
 import {
+  autoFlagAll,
   createCells,
   findAvailableChord,
-  findFlaggableMine,
   flagRemainingMines,
   floodReveal,
   isCleared,
@@ -50,7 +50,6 @@ export class GameStore {
   private readonly _autoRestartDeadline = signal(
     Date.now() + this.upgrades.autoRestartIntervalMs(),
   );
-  private readonly _autoFlagDeadline = signal(Date.now() + this.upgrades.autoFlagIntervalMs());
 
   readonly config = this._config.asReadonly();
   readonly cells = this._cells.asReadonly();
@@ -65,9 +64,6 @@ export class GameStore {
   );
   readonly secondsUntilAutoRestart = computed(() =>
     Math.max(0, Math.ceil((this._autoRestartDeadline() - this._nowMs()) / 1000)),
-  );
-  readonly secondsUntilAutoFlag = computed(() =>
-    Math.max(0, Math.ceil((this._autoFlagDeadline() - this._nowMs()) / 1000)),
   );
 
   readonly flagCount = computed(
@@ -104,7 +100,6 @@ export class GameStore {
       this.upgrades.snifferIntervalMs();
       this.upgrades.autoChordIntervalMs();
       this.upgrades.autoRestartIntervalMs();
-      this.upgrades.autoFlagIntervalMs();
       untracked(() => {
         if (firstEffectRun) {
           firstEffectRun = false;
@@ -114,6 +109,18 @@ export class GameStore {
           this.newGame();
         }
       });
+    });
+
+    // Auto-flag isn't timer-driven - it reacts immediately to reveals/chords
+    // (see applyAutoFlag call sites below). This effect only covers buying
+    // the unlock or flipping the toggle on mid-round: it retroactively grabs
+    // anything already deducible from clues the player exposed before that
+    // moment, rather than waiting for the next move to catch up.
+    effect(() => {
+      const active = this.upgrades.autoFlagUnlocked() && this.upgrades.autoFlagEnabled();
+      if (active) {
+        untracked(() => this.applyAutoFlag());
+      }
     });
   }
 
@@ -127,7 +134,6 @@ export class GameStore {
     this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
     this._autoChordDeadline.set(now + this.upgrades.autoChordIntervalMs());
     this._autoRestartDeadline.set(now + this.upgrades.autoRestartIntervalMs());
-    this._autoFlagDeadline.set(now + this.upgrades.autoFlagIntervalMs());
   }
 
   /** Left click: uncover a square (or chord, if it is already a number). */
@@ -157,6 +163,7 @@ export class GameStore {
     const next = floodReveal(cells, index, config);
     this._cells.set(next);
     this.settle(next);
+    this.applyAutoFlag();
   }
 
   /** Right click: cycle a square between hidden and flagged. */
@@ -168,6 +175,10 @@ export class GameStore {
     const cells = this._cells();
     const target = cells[index];
     if (!target || target.state === 'revealed') {
+      return;
+    }
+    // A flag the auto-flag timer placed is locked in - it can't be misclicked away.
+    if (target.state === 'flagged' && target.autoFlagged) {
       return;
     }
 
@@ -247,6 +258,7 @@ export class GameStore {
     }
     this._cells.set(next);
     this.settle(next);
+    this.applyAutoFlag();
   }
 
   /** Lays mines around `safeIndex` and starts the round, if it hasn't already. */
@@ -284,7 +296,7 @@ export class GameStore {
     };
   }
 
-  /** Runs for the lifetime of the store - sniffer/auto-flag/auto-chord/auto-restart all key off it. */
+  /** Runs for the lifetime of the store - sniffer/auto-chord/auto-restart all key off it. */
   private startTimer(): void {
     this.stopTimer();
     let lastTickAt = Date.now();
@@ -306,21 +318,14 @@ export class GameStore {
         return;
       }
 
-      // Sniffer first (it can reveal or flag), then auto-flag, then
-      // auto-chord last so it sees any flags placed earlier in this tick.
+      // Sniffer first (it can reveal or flag - each already triggers its own
+      // applyAutoFlag call), then auto-chord, which needs the freshest flags.
       if (
         this.upgrades.snifferUnlocked() &&
         now >= this._snifferDeadline() &&
         this.tryResolveSniffer()
       ) {
         this._snifferDeadline.set(now + this.upgrades.snifferIntervalMs());
-      }
-      if (
-        this.upgrades.autoFlagUnlocked() &&
-        now >= this._autoFlagDeadline() &&
-        this.tryAutoFlag()
-      ) {
-        this._autoFlagDeadline.set(now + this.upgrades.autoFlagIntervalMs());
       }
       if (
         this.upgrades.autoChordUnlocked() &&
@@ -368,6 +373,7 @@ export class GameStore {
       this._cells.set(next);
       this.settle(next);
     }
+    this.applyAutoFlag();
   }
 
   /**
@@ -397,17 +403,12 @@ export class GameStore {
     return true;
   }
 
-  /** Flags one logically-deducible mine, if any. Returns whether one was found. */
-  private tryAutoFlag(): boolean {
-    const index = findFlaggableMine(this._cells(), this._config());
-    if (index === undefined) {
-      return false;
+  /** Flags every currently-deducible mine at once, if auto-flag is unlocked and switched on. */
+  private applyAutoFlag(): void {
+    if (this.isOver() || !this.upgrades.autoFlagUnlocked() || !this.upgrades.autoFlagEnabled()) {
+      return;
     }
-    const cells = this._cells();
-    const next = cells.slice();
-    next[index] = { ...cells[index], state: 'flagged' };
-    this._cells.set(next);
-    return true;
+    this._cells.set(autoFlagAll(this._cells(), this._config()));
   }
 
   /** Chords one available square, if any. Returns whether one was found. */

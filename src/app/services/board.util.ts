@@ -15,6 +15,7 @@ export function createCells(config: BoardConfig): Cell[] {
         exploded: false,
         wrongFlag: false,
         hasSniffer: false,
+        autoFlagged: false,
       });
     }
   }
@@ -190,6 +191,26 @@ export function findFlaggableMine(cells: readonly Cell[], config: BoardConfig): 
   }
 
   return undefined;
+}
+
+/**
+ * Flags every hidden cell whose mine-ness is currently logically guaranteed,
+ * repeating until no further deduction is available - flagging one mine can
+ * immediately satisfy a different revealed number elsewhere, unlocking the
+ * next one. Every cell it flags is marked `autoFlagged: true`.
+ */
+export function autoFlagAll(cells: readonly Cell[], config: BoardConfig): readonly Cell[] {
+  let next = cells;
+  let index = findFlaggableMine(next, config);
+
+  while (index !== undefined) {
+    const updated = next.slice();
+    updated[index] = { ...updated[index], state: 'flagged', autoFlagged: true };
+    next = updated;
+    index = findFlaggableMine(next, config);
+  }
+
+  return next;
 }
 
 /** The board is cleared when every non-mine square has been revealed. */

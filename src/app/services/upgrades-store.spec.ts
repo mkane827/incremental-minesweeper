@@ -86,10 +86,7 @@ describe('UpgradesStore', () => {
     expect(store.autoRestartSpeedCost()).toBe(20);
     expect(store.isAutoRestartSpeedMaxed()).toBe(false);
 
-    expect(store.autoFlagSpeedLevel()).toBe(0);
-    expect(store.autoFlagIntervalMs()).toBe(BASE_TIMER_MS);
-    expect(store.autoFlagSpeedCost()).toBe(20);
-    expect(store.isAutoFlagSpeedMaxed()).toBe(false);
+    expect(store.autoFlagEnabled()).toBe(true);
   });
 
   it('reports mine density as a fraction of the board and flags it at the cap', () => {
@@ -149,7 +146,6 @@ describe('UpgradesStore', () => {
     expect(store.canAffordSnifferSpeed()).toBe(false);
     expect(store.canAffordAutoChordSpeed()).toBe(false);
     expect(store.canAffordAutoRestartSpeed()).toBe(false);
-    expect(store.canAffordAutoFlagSpeed()).toBe(false);
 
     store.buyMineCapacity();
     store.buyBoardRows();
@@ -157,7 +153,6 @@ describe('UpgradesStore', () => {
     store.buySnifferSpeed();
     store.buyAutoChordSpeed();
     store.buyAutoRestartSpeed();
-    store.buyAutoFlagSpeed();
 
     expect(store.mineCapacityLevel()).toBe(0);
     expect(store.boardRowsLevel()).toBe(0);
@@ -165,7 +160,6 @@ describe('UpgradesStore', () => {
     expect(store.snifferSpeedLevel()).toBe(0);
     expect(store.autoChordSpeedLevel()).toBe(0);
     expect(store.autoRestartSpeedLevel()).toBe(0);
-    expect(store.autoFlagSpeedLevel()).toBe(0);
   });
 
   it('buys a mine capacity level, spending currency and raising max mines by one', () => {
@@ -202,7 +196,7 @@ describe('UpgradesStore', () => {
     expect(currency.mines()).toBe(0);
   });
 
-  it('buys sniffer, auto-flag, auto-chord, and auto-restart speed levels independently', () => {
+  it('buys sniffer, auto-chord, and auto-restart speed levels independently', () => {
     const store = createStore();
     const currency = TestBed.inject(CurrencyStore);
     currency.earn(100);
@@ -215,7 +209,6 @@ describe('UpgradesStore', () => {
     expect(store.snifferIntervalMs()).toBe(9000);
     expect(store.autoChordSpeedLevel()).toBe(0);
     expect(store.autoRestartSpeedLevel()).toBe(0);
-    expect(store.autoFlagSpeedLevel()).toBe(0);
     expect(currency.mines()).toBe(0);
 
     currency.earn(250);
@@ -226,18 +219,12 @@ describe('UpgradesStore', () => {
     store.buyAutoRestartUnlock();
     currency.earn(20);
     store.buyAutoRestartSpeed();
-    currency.earn(150);
-    store.buyAutoFlagUnlock();
-    currency.earn(20);
-    store.buyAutoFlagSpeed();
 
     expect(store.snifferSpeedLevel()).toBe(1);
     expect(store.autoChordSpeedLevel()).toBe(1);
     expect(store.autoChordIntervalMs()).toBe(9000);
     expect(store.autoRestartSpeedLevel()).toBe(1);
     expect(store.autoRestartIntervalMs()).toBe(9000);
-    expect(store.autoFlagSpeedLevel()).toBe(1);
-    expect(store.autoFlagIntervalMs()).toBe(9000);
     expect(currency.mines()).toBe(0);
   });
 
@@ -259,7 +246,6 @@ describe('UpgradesStore', () => {
     expect(store.snifferSpeedCost()).toBe(25); // round(20 * 1.25^1)
     expect(store.autoChordSpeedCost()).toBe(20); // unaffected
     expect(store.autoRestartSpeedCost()).toBe(20); // unaffected
-    expect(store.autoFlagSpeedCost()).toBe(20); // unaffected
   });
 
   it('persists purchased levels independently', () => {
@@ -276,11 +262,10 @@ describe('UpgradesStore', () => {
     store.buyAutoChordUnlock();
     store.buyAutoRestartUnlock();
 
-    currency.earn(80); // 20 * 4 speed levels
+    currency.earn(60); // 20 * 3 speed levels
     store.buySnifferSpeed();
     store.buyAutoChordSpeed();
     store.buyAutoRestartSpeed();
-    store.buyAutoFlagSpeed();
 
     expect(JSON.parse(localStorage.getItem('ms-upgrades')!)).toEqual({
       mineCapacity: 1,
@@ -289,9 +274,9 @@ describe('UpgradesStore', () => {
       snifferSpeed: 1,
       autoChordSpeed: 1,
       autoRestartSpeed: 1,
-      autoFlagSpeed: 1,
       snifferUnlocked: true,
       autoFlagUnlocked: true,
+      autoFlagEnabled: true,
       autoChordUnlocked: true,
       autoRestartUnlocked: true,
       autoSnifferUnlocked: false,
@@ -308,7 +293,6 @@ describe('UpgradesStore', () => {
         snifferSpeed: 1,
         autoChordSpeed: 5,
         autoRestartSpeed: 7,
-        autoFlagSpeed: 2,
       }),
     );
 
@@ -326,8 +310,6 @@ describe('UpgradesStore', () => {
     expect(store.autoChordIntervalMs()).toBe(timerIntervalMs(5));
     expect(store.autoRestartSpeedLevel()).toBe(7);
     expect(store.autoRestartIntervalMs()).toBe(timerIntervalMs(7));
-    expect(store.autoFlagSpeedLevel()).toBe(2);
-    expect(store.autoFlagIntervalMs()).toBe(timerIntervalMs(2));
   });
 
   it('migrates legacy boardSize saved data to equal row and column levels', () => {
@@ -351,7 +333,7 @@ describe('UpgradesStore', () => {
     expect(store.snifferSpeedLevel()).toBe(0);
     expect(store.autoChordSpeedLevel()).toBe(0);
     expect(store.autoRestartSpeedLevel()).toBe(0);
-    expect(store.autoFlagSpeedLevel()).toBe(0);
+    expect(store.autoFlagEnabled()).toBe(true); // defaults on even from malformed data
   });
 
   describe('unlock gating', () => {
@@ -371,12 +353,10 @@ describe('UpgradesStore', () => {
       currency.earn(1000);
 
       store.buySnifferSpeed();
-      store.buyAutoFlagSpeed();
       store.buyAutoChordSpeed();
       store.buyAutoRestartSpeed();
 
       expect(store.snifferSpeedLevel()).toBe(0);
-      expect(store.autoFlagSpeedLevel()).toBe(0);
       expect(store.autoChordSpeedLevel()).toBe(0);
       expect(store.autoRestartSpeedLevel()).toBe(0);
       expect(currency.mines()).toBe(1000); // nothing spent
@@ -459,6 +439,43 @@ describe('UpgradesStore', () => {
       const store = createStore();
 
       expect(store.autoSnifferUnlocked()).toBe(false);
+    });
+  });
+
+  describe('auto-flag toggle', () => {
+    it('defaults to on, even before the mechanic is unlocked', () => {
+      const store = createStore();
+
+      expect(store.autoFlagEnabled()).toBe(true);
+    });
+
+    it('can be turned off and back on, persisting either way', () => {
+      const store = createStore();
+
+      store.setAutoFlagEnabled(false);
+      expect(store.autoFlagEnabled()).toBe(false);
+      expect(JSON.parse(localStorage.getItem('ms-upgrades')!).autoFlagEnabled).toBe(false);
+
+      store.setAutoFlagEnabled(true);
+      expect(store.autoFlagEnabled()).toBe(true);
+      expect(JSON.parse(localStorage.getItem('ms-upgrades')!).autoFlagEnabled).toBe(true);
+    });
+
+    it('loads a persisted off preference', () => {
+      localStorage.setItem('ms-upgrades', JSON.stringify({ mineCapacity: 0, autoFlagEnabled: false }));
+
+      const store = createStore();
+
+      expect(store.autoFlagEnabled()).toBe(false);
+    });
+
+    it('resets back to on for the next run when prestiging', () => {
+      const store = createStore();
+      store.setAutoFlagEnabled(false);
+
+      store.resetForPrestige();
+
+      expect(store.autoFlagEnabled()).toBe(true);
     });
   });
 
