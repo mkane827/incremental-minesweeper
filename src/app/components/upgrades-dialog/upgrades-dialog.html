@@ -157,6 +157,27 @@
     </div>
   }
 
+  @if (!upgrades.chordHighlightUnlocked()) {
+    <div class="upgrade">
+      <div class="upgrade-info">
+        <span class="upgrade-name">Highlight available chords</span>
+        <span class="upgrade-detail">
+          Highlights revealed numbers whose flags match so you can click to chord them &middot;
+          toggle on/off below the board
+        </span>
+      </div>
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!upgrades.canAffordChordHighlightUnlock()"
+        (click)="buyChordHighlightUnlock()"
+      >
+        <mat-icon aria-hidden="true">diamond</mat-icon>
+        {{ upgrades.chordHighlightUnlockCost }}
+      </button>
+    </div>
+  }
+
   @if (!upgrades.autoChordUnlocked()) {
     <div class="upgrade">
       <div class="upgrade-info">

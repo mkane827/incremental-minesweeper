@@ -51,6 +51,28 @@
 
   <div class="upgrade">
     <div class="upgrade-info">
+      <span class="upgrade-name">Permanent chord highlighting</span>
+      <span class="upgrade-detail">
+        Available chord highlighting stays unlocked through every future prestige
+      </span>
+    </div>
+    @if (prestige.permanentChordHighlightUnlocked()) {
+      <button matButton="filled" type="button" disabled>OWNED</button>
+    } @else {
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="!prestige.canAffordPermanentChordHighlight()"
+        (click)="buyPermanentChordHighlight()"
+      >
+        <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+        {{ prestige.permanentChordHighlightCost }}
+      </button>
+    }
+  </div>
+
+  <div class="upgrade">
+    <div class="upgrade-info">
       <span class="upgrade-name">Permanent sniffer (🐶)</span>
       <span class="upgrade-detail">The sniffer stays unlocked through every future prestige</span>
     </div>

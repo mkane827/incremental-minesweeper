@@ -69,6 +69,7 @@ const AUTO_RESTART_SPEED_COST_GROWTH = 1.25;
  * no timer/speed track of its own - it's a single unlock that flags every
  * currently-deducible mine immediately, toggleable on/off once bought.
  */
+export const CHORD_HIGHLIGHT_UNLOCK_COST = 50;
 export const SNIFFER_UNLOCK_COST = 100;
 export const AUTO_FLAG_UNLOCK_COST = 150;
 export const AUTO_CHORD_UNLOCK_COST = 250;
@@ -84,6 +85,8 @@ interface StoredUpgrades {
   readonly autoChordSpeed?: number;
   readonly autoRestartSpeed?: number;
   readonly snifferUnlocked?: boolean;
+  readonly chordHighlightUnlocked?: boolean;
+  readonly chordHighlightEnabled?: boolean;
   readonly autoFlagUnlocked?: boolean;
   readonly autoFlagEnabled?: boolean;
   readonly autoChordUnlocked?: boolean;
@@ -99,6 +102,8 @@ interface LoadedUpgrades {
   readonly autoChordSpeed: number;
   readonly autoRestartSpeed: number;
   readonly snifferUnlocked: boolean;
+  readonly chordHighlightUnlocked: boolean;
+  readonly chordHighlightEnabled: boolean;
   readonly autoFlagUnlocked: boolean;
   readonly autoFlagEnabled: boolean;
   readonly autoChordUnlocked: boolean;
@@ -120,6 +125,8 @@ export class UpgradesStore {
   private readonly _autoChordSpeedLevel = signal(this.stored.autoChordSpeed);
   private readonly _autoRestartSpeedLevel = signal(this.stored.autoRestartSpeed);
   private readonly _snifferUnlocked = signal(this.stored.snifferUnlocked);
+  private readonly _chordHighlightUnlocked = signal(this.stored.chordHighlightUnlocked);
+  private readonly _chordHighlightEnabled = signal(this.stored.chordHighlightEnabled);
   private readonly _autoFlagUnlocked = signal(this.stored.autoFlagUnlocked);
   private readonly _autoFlagEnabled = signal(this.stored.autoFlagEnabled);
   private readonly _autoChordUnlocked = signal(this.stored.autoChordUnlocked);
@@ -134,6 +141,8 @@ export class UpgradesStore {
   readonly autoRestartSpeedLevel = this._autoRestartSpeedLevel.asReadonly();
   /** Player on/off preference - only meaningful once `autoFlagUnlocked` is true. Defaults on. */
   readonly autoFlagEnabled = this._autoFlagEnabled.asReadonly();
+  /** Player on/off preference - only meaningful once `chordHighlightUnlocked` is true. Defaults on. */
+  readonly chordHighlightEnabled = this._chordHighlightEnabled.asReadonly();
   /** True once bought with mines OR permanently unlocked with prestige points - either way, the mechanic is live. */
   readonly snifferUnlocked = computed(
     () => this._snifferUnlocked() || this.prestige.permanentSnifferUnlocked(),
@@ -150,7 +159,11 @@ export class UpgradesStore {
   readonly autoSnifferUnlocked = computed(
     () => this._autoSnifferUnlocked() || this.prestige.permanentAutoSnifferUnlocked(),
   );
+  readonly chordHighlightUnlocked = computed(
+    () => this._chordHighlightUnlocked() || this.prestige.permanentChordHighlightUnlocked(),
+  );
 
+  readonly chordHighlightUnlockCost = CHORD_HIGHLIGHT_UNLOCK_COST;
   readonly snifferUnlockCost = SNIFFER_UNLOCK_COST;
   readonly autoFlagUnlockCost = AUTO_FLAG_UNLOCK_COST;
   readonly autoChordUnlockCost = AUTO_CHORD_UNLOCK_COST;
@@ -226,6 +239,9 @@ export class UpgradesStore {
       this.autoRestartUnlocked() &&
       !this.isAutoRestartSpeedMaxed() &&
       this.currency.mines() >= this.autoRestartSpeedCost(),
+  );
+  readonly canAffordChordHighlightUnlock = computed(
+    () => !this.chordHighlightUnlocked() && this.currency.mines() >= CHORD_HIGHLIGHT_UNLOCK_COST,
   );
   readonly canAffordSnifferUnlock = computed(
     () => !this.snifferUnlocked() && this.currency.mines() >= SNIFFER_UNLOCK_COST,
@@ -319,6 +335,21 @@ export class UpgradesStore {
     this.persist();
   }
 
+  /** Turns chord highlighting on or off once unlocked. */
+  setChordHighlightEnabled(enabled: boolean): void {
+    this._chordHighlightEnabled.set(enabled);
+    this.persist();
+  }
+
+  /** Unlocks highlighting available chords on the board, if affordable. */
+  buyChordHighlightUnlock(): void {
+    if (this.chordHighlightUnlocked() || !this.currency.spend(CHORD_HIGHLIGHT_UNLOCK_COST)) {
+      return;
+    }
+    this._chordHighlightUnlocked.set(true);
+    this.persist();
+  }
+
   /** Unlocks the sniffer mechanic itself, if affordable. */
   buySnifferUnlock(): void {
     if (this.snifferUnlocked() || !this.currency.spend(SNIFFER_UNLOCK_COST)) {
@@ -382,6 +413,8 @@ export class UpgradesStore {
     this._autoChordSpeedLevel.set(0);
     this._autoRestartSpeedLevel.set(0);
     this._snifferUnlocked.set(false);
+    this._chordHighlightUnlocked.set(false);
+    this._chordHighlightEnabled.set(true);
     this._autoFlagUnlocked.set(false);
     this._autoFlagEnabled.set(true);
     this._autoChordUnlocked.set(false);
@@ -399,6 +432,8 @@ export class UpgradesStore {
       autoChordSpeed: this._autoChordSpeedLevel(),
       autoRestartSpeed: this._autoRestartSpeedLevel(),
       snifferUnlocked: this._snifferUnlocked(),
+      chordHighlightUnlocked: this._chordHighlightUnlocked(),
+      chordHighlightEnabled: this._chordHighlightEnabled(),
       autoFlagUnlocked: this._autoFlagUnlocked(),
       autoFlagEnabled: this._autoFlagEnabled(),
       autoChordUnlocked: this._autoChordUnlocked(),
@@ -417,6 +452,8 @@ export class UpgradesStore {
       autoChordSpeed: 0,
       autoRestartSpeed: 0,
       snifferUnlocked: false,
+      chordHighlightUnlocked: false,
+      chordHighlightEnabled: true,
       autoFlagUnlocked: false,
       autoFlagEnabled: true,
       autoChordUnlocked: false,
@@ -438,6 +475,8 @@ export class UpgradesStore {
       const autoChordSpeed = Number(parsed.autoChordSpeed);
       const autoRestartSpeed = Number(parsed.autoRestartSpeed);
       const snifferUnlocked = parsed.snifferUnlocked === true;
+      const chordHighlightUnlocked = parsed.chordHighlightUnlocked === true;
+      const chordHighlightEnabled = parsed.chordHighlightEnabled !== false;
       const autoFlagUnlocked = parsed.autoFlagUnlocked === true;
       const autoFlagEnabled = parsed.autoFlagEnabled !== false;
       const autoChordUnlocked = parsed.autoChordUnlocked === true;
@@ -460,6 +499,8 @@ export class UpgradesStore {
         autoRestartSpeed:
           Number.isFinite(autoRestartSpeed) && autoRestartSpeed >= 0 ? autoRestartSpeed : 0,
         snifferUnlocked,
+        chordHighlightUnlocked,
+        chordHighlightEnabled,
         autoFlagUnlocked,
         autoFlagEnabled,
         autoChordUnlocked,

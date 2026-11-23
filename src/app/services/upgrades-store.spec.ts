@@ -6,6 +6,7 @@ import {
   BASE_MAX_MINES,
   BASE_ROWS,
   BASE_TIMER_MS,
+  CHORD_HIGHLIGHT_UNLOCK_COST,
   MIN_TIMER_MS,
   timerIntervalMs,
   UpgradesStore,
@@ -275,6 +276,8 @@ describe('UpgradesStore', () => {
       autoChordSpeed: 1,
       autoRestartSpeed: 1,
       snifferUnlocked: true,
+      chordHighlightUnlocked: false,
+      chordHighlightEnabled: true,
       autoFlagUnlocked: true,
       autoFlagEnabled: true,
       autoChordUnlocked: true,
@@ -337,10 +340,56 @@ describe('UpgradesStore', () => {
   });
 
   describe('unlock gating', () => {
+    it('buys and persists the chord-highlight unlock and resets it on prestige', () => {
+      const store = createStore();
+      const currency = TestBed.inject(CurrencyStore);
+
+      expect(store.canAffordChordHighlightUnlock()).toBe(false);
+      currency.earn(CHORD_HIGHLIGHT_UNLOCK_COST);
+      expect(store.canAffordChordHighlightUnlock()).toBe(true);
+
+      store.buyChordHighlightUnlock();
+      expect(store.chordHighlightUnlocked()).toBe(true);
+      expect(currency.mines()).toBe(0);
+
+      TestBed.resetTestingModule();
+      expect(TestBed.inject(UpgradesStore).chordHighlightUnlocked()).toBe(true);
+
+      TestBed.inject(UpgradesStore).resetForPrestige();
+      expect(TestBed.inject(UpgradesStore).chordHighlightUnlocked()).toBe(false);
+    });
+
+    it('defaults chord highlight toggle to on, persists changes, and resets to on on prestige', () => {
+      const store = createStore();
+      expect(store.chordHighlightEnabled()).toBe(true);
+
+      store.setChordHighlightEnabled(false);
+      expect(store.chordHighlightEnabled()).toBe(false);
+
+      TestBed.resetTestingModule();
+      expect(TestBed.inject(UpgradesStore).chordHighlightEnabled()).toBe(false);
+
+      TestBed.inject(UpgradesStore).resetForPrestige();
+      expect(TestBed.inject(UpgradesStore).chordHighlightEnabled()).toBe(true);
+    });
+
+    it('keeps chord highlighting unlocked through resetForPrestige when bought permanently', () => {
+      const currency = TestBed.inject(CurrencyStore);
+      const prestige = TestBed.inject(PrestigeStore);
+      const store = createStore();
+      currency.earn(800); // 1 prestige point
+      prestige.claimAvailableGain();
+      prestige.buyPermanentChordHighlight();
+
+      store.resetForPrestige();
+      expect(store.chordHighlightUnlocked()).toBe(true);
+    });
+
     it('starts with every automation locked', () => {
       const store = createStore();
 
       expect(store.snifferUnlocked()).toBe(false);
+      expect(store.chordHighlightUnlocked()).toBe(false);
       expect(store.autoFlagUnlocked()).toBe(false);
       expect(store.autoChordUnlocked()).toBe(false);
       expect(store.autoRestartUnlocked()).toBe(false);

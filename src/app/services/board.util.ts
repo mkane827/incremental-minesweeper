@@ -230,26 +230,30 @@ export function isChordReady(cells: readonly Cell[], index: number, config: Boar
 }
 
 /**
+ * Whether `index` is a revealed number whose current flag count matches its
+ * adjacent-mine count (regardless of whether those flags are correct) and
+ * still has at least one hidden neighbour left to reveal.
+ */
+export function isAvailableChord(
+  cells: readonly Cell[],
+  index: number,
+  config: BoardConfig,
+): boolean {
+  const cell = cells[index];
+  if (!cell || cell.state !== 'revealed' || cell.adjacentMines === 0) {
+    return false;
+  }
+
+  const neighbors = neighborIndexes(index, config);
+  const flagged = neighbors.filter((n) => cells[n].state === 'flagged').length;
+  return flagged === cell.adjacentMines && neighbors.some((n) => cells[n].state === 'hidden');
+}
+
+/**
  * Finds a revealed number whose flag count already matches, and that still
  * has at least one hidden neighbour left to reveal (i.e. chording it would
  * actually make progress). Returns `undefined` if no such square exists.
  */
 export function findAvailableChord(cells: readonly Cell[], config: BoardConfig): number | undefined {
-  for (const cell of cells) {
-    if (cell.state !== 'revealed' || cell.adjacentMines === 0) {
-      continue;
-    }
-
-    const neighbors = neighborIndexes(cell.index, config);
-    const flagged = neighbors.filter((n) => cells[n].state === 'flagged').length;
-    if (flagged !== cell.adjacentMines) {
-      continue;
-    }
-
-    if (neighbors.some((n) => cells[n].state === 'hidden')) {
-      return cell.index;
-    }
-  }
-
-  return undefined;
+  return cells.find((cell) => isAvailableChord(cells, cell.index, config))?.index;
 }

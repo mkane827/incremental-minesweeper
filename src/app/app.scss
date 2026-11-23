@@ -53,9 +53,28 @@
   overflow-x: auto;
 }
 
-.auto-flag-toggle {
+.board-toggles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.board-toggle {
   font: var(--mat-sys-body-medium);
+}
+
+.auto-flag-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.auto-flag-icon {
+  color: var(--mat-sys-tertiary);
+  font-size: 16px;
+  inline-size: 16px;
+  block-size: 16px;
 }
 
 .banner {

@@ -14,6 +14,7 @@ export function prestigePointsForLifetimeMines(lifetimeMines: number): number {
   return Math.floor(Math.sqrt(lifetimeMines / LIFETIME_MINES_PER_POINT));
 }
 
+export const PERMANENT_CHORD_HIGHLIGHT_COST = 1;
 export const PERMANENT_SNIFFER_COST = 1;
 export const PERMANENT_AUTO_FLAG_COST = 2;
 export const PERMANENT_AUTO_CHORD_COST = 3;
@@ -24,6 +25,7 @@ interface StoredPrestige {
   readonly points: number;
   readonly lifetimePointsClaimed: number;
   readonly permanentSnifferUnlocked: boolean;
+  readonly permanentChordHighlightUnlocked: boolean;
   readonly permanentAutoFlagUnlocked: boolean;
   readonly permanentAutoChordUnlocked: boolean;
   readonly permanentAutoRestartUnlocked: boolean;
@@ -47,6 +49,9 @@ export class PrestigeStore {
   private readonly _points = signal(this.stored.points);
   private readonly _lifetimePointsClaimed = signal(this.stored.lifetimePointsClaimed);
   private readonly _permanentSnifferUnlocked = signal(this.stored.permanentSnifferUnlocked);
+  private readonly _permanentChordHighlightUnlocked = signal(
+    this.stored.permanentChordHighlightUnlocked,
+  );
   private readonly _permanentAutoFlagUnlocked = signal(this.stored.permanentAutoFlagUnlocked);
   private readonly _permanentAutoChordUnlocked = signal(this.stored.permanentAutoChordUnlocked);
   private readonly _permanentAutoRestartUnlocked = signal(this.stored.permanentAutoRestartUnlocked);
@@ -54,11 +59,13 @@ export class PrestigeStore {
 
   readonly points = this._points.asReadonly();
   readonly permanentSnifferUnlocked = this._permanentSnifferUnlocked.asReadonly();
+  readonly permanentChordHighlightUnlocked = this._permanentChordHighlightUnlocked.asReadonly();
   readonly permanentAutoFlagUnlocked = this._permanentAutoFlagUnlocked.asReadonly();
   readonly permanentAutoChordUnlocked = this._permanentAutoChordUnlocked.asReadonly();
   readonly permanentAutoRestartUnlocked = this._permanentAutoRestartUnlocked.asReadonly();
   readonly permanentAutoSnifferUnlocked = this._permanentAutoSnifferUnlocked.asReadonly();
 
+  readonly permanentChordHighlightCost = PERMANENT_CHORD_HIGHLIGHT_COST;
   readonly permanentSnifferCost = PERMANENT_SNIFFER_COST;
   readonly permanentAutoFlagCost = PERMANENT_AUTO_FLAG_COST;
   readonly permanentAutoChordCost = PERMANENT_AUTO_CHORD_COST;
@@ -78,6 +85,11 @@ export class PrestigeStore {
     () => LIFETIME_MINES_PER_POINT * (this._lifetimePointsClaimed() + 1) ** 2,
   );
 
+  readonly canAffordPermanentChordHighlight = computed(
+    () =>
+      !this._permanentChordHighlightUnlocked() &&
+      this._points() >= PERMANENT_CHORD_HIGHLIGHT_COST,
+  );
   readonly canAffordPermanentSniffer = computed(
     () => !this._permanentSnifferUnlocked() && this._points() >= PERMANENT_SNIFFER_COST,
   );
@@ -108,6 +120,18 @@ export class PrestigeStore {
     this._lifetimePointsClaimed.update((value) => value + gain);
     this.persist();
     return gain;
+  }
+
+  buyPermanentChordHighlight(): void {
+    if (
+      this._permanentChordHighlightUnlocked() ||
+      this._points() < PERMANENT_CHORD_HIGHLIGHT_COST
+    ) {
+      return;
+    }
+    this._points.update((value) => value - PERMANENT_CHORD_HIGHLIGHT_COST);
+    this._permanentChordHighlightUnlocked.set(true);
+    this.persist();
   }
 
   buyPermanentSniffer(): void {
@@ -164,6 +188,7 @@ export class PrestigeStore {
       points: this._points(),
       lifetimePointsClaimed: this._lifetimePointsClaimed(),
       permanentSnifferUnlocked: this._permanentSnifferUnlocked(),
+      permanentChordHighlightUnlocked: this._permanentChordHighlightUnlocked(),
       permanentAutoFlagUnlocked: this._permanentAutoFlagUnlocked(),
       permanentAutoChordUnlocked: this._permanentAutoChordUnlocked(),
       permanentAutoRestartUnlocked: this._permanentAutoRestartUnlocked(),
@@ -177,6 +202,7 @@ export class PrestigeStore {
       points: 0,
       lifetimePointsClaimed: 0,
       permanentSnifferUnlocked: false,
+      permanentChordHighlightUnlocked: false,
       permanentAutoFlagUnlocked: false,
       permanentAutoChordUnlocked: false,
       permanentAutoRestartUnlocked: false,
@@ -200,6 +226,7 @@ export class PrestigeStore {
             ? lifetimePointsClaimed
             : 0,
         permanentSnifferUnlocked,
+        permanentChordHighlightUnlocked: parsed.permanentChordHighlightUnlocked === true,
         permanentAutoFlagUnlocked: parsed.permanentAutoFlagUnlocked === true,
         permanentAutoChordUnlocked: parsed.permanentAutoChordUnlocked === true,
         permanentAutoRestartUnlocked: parsed.permanentAutoRestartUnlocked === true,

@@ -52,6 +52,10 @@ export class PrestigeDialog {
     this.confirming.set(false);
   }
 
+  protected buyPermanentChordHighlight(): void {
+    this.prestige.buyPermanentChordHighlight();
+  }
+
   protected buyPermanentSniffer(): void {
     this.prestige.buyPermanentSniffer();
   }

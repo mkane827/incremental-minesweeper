@@ -134,6 +134,7 @@ describe('PrestigeStore', () => {
     expect(saved.points).toBe(2);
     expect(saved.lifetimePointsClaimed).toBe(5);
     expect(saved.permanentSnifferUnlocked).toBe(true);
+    expect(saved.permanentChordHighlightUnlocked).toBe(false);
     expect(saved.permanentAutoFlagUnlocked).toBe(true);
     expect(saved.permanentAutoChordUnlocked).toBe(false);
   });
@@ -145,6 +146,7 @@ describe('PrestigeStore', () => {
         points: 4,
         lifetimePointsClaimed: 7,
         permanentSnifferUnlocked: true,
+        permanentChordHighlightUnlocked: true,
         permanentAutoFlagUnlocked: false,
         permanentAutoChordUnlocked: true,
         permanentAutoRestartUnlocked: false,
@@ -156,6 +158,7 @@ describe('PrestigeStore', () => {
 
     expect(store.points()).toBe(4);
     expect(store.permanentSnifferUnlocked()).toBe(true);
+    expect(store.permanentChordHighlightUnlocked()).toBe(true);
     expect(store.permanentAutoFlagUnlocked()).toBe(false);
     expect(store.permanentAutoChordUnlocked()).toBe(true);
     expect(store.permanentAutoSnifferUnlocked()).toBe(true);
@@ -184,5 +187,20 @@ describe('PrestigeStore', () => {
 
     expect(store.points()).toBe(0);
     expect(store.permanentSnifferUnlocked()).toBe(false);
+    expect(store.permanentChordHighlightUnlocked()).toBe(false);
+  });
+
+  it('buys and persists permanent chord highlighting', () => {
+    const store = createStore();
+    const currency = TestBed.inject(CurrencyStore);
+    currency.earn(800); // 1 point
+    store.claimAvailableGain();
+
+    store.buyPermanentChordHighlight();
+    expect(store.permanentChordHighlightUnlocked()).toBe(true);
+    expect(store.points()).toBe(0);
+
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(PrestigeStore).permanentChordHighlightUnlocked()).toBe(true);
   });
 });

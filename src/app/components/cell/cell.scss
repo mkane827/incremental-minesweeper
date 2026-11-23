@@ -45,6 +45,19 @@
   background: var(--mat-sys-secondary-container);
 }
 
+:host(.is-revealed.is-chord-highlighted) {
+  background: color-mix(
+    in srgb,
+    var(--mat-sys-tertiary-container) 75%,
+    var(--mat-sys-surface-container)
+  );
+  border-color: var(--mat-sys-tertiary);
+}
+
+:host(.is-revealed.is-chord-highlighted:hover) {
+  background: var(--mat-sys-tertiary-container);
+}
+
 :host(.is-exploded) {
   background: var(--mat-sys-error);
   border-color: var(--mat-sys-error);

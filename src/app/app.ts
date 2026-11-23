@@ -68,6 +68,10 @@ export class App {
     this.upgrades.setAutoFlagEnabled(event.checked);
   }
 
+  protected onChordHighlightToggle(event: MatSlideToggleChange): void {
+    this.upgrades.setChordHighlightEnabled(event.checked);
+  }
+
   protected readonly banner = computed(() => {
     switch (this.status()) {
       case 'won':

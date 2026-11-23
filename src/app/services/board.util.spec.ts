@@ -6,6 +6,7 @@ import {
   findFlaggableMine,
   flagRemainingMines,
   floodReveal,
+  isAvailableChord,
   isChordReady,
   isCleared,
   neighborIndexes,
@@ -356,6 +357,31 @@ describe('isChordReady', () => {
 
     expect(isChordReady(cells, 0, config)).toBe(false); // hidden
     expect(isChordReady(cells, 1, config)).toBe(false); // revealed but adjacentMines 0 by default
+  });
+});
+
+describe('isAvailableChord', () => {
+  it('is true when flag count matches and at least one hidden neighbour remains, even if the flag is wrong', () => {
+    // 1x3 board: actual mine at 2 (hidden), player wrongly flagged safe cell 0, "1" at 1 (revealed).
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, isMine: true };
+    });
+
+    expect(isAvailableChord(cells, 1, config)).toBe(true);
+  });
+
+  it('is false when all neighbours are already revealed or flagged', () => {
+    const config: BoardConfig = { rows: 1, cols: 3, mines: 1 };
+    const cells = createCells(config).map((cell) => {
+      if (cell.index === 0) return { ...cell, isMine: true, state: 'flagged' as const };
+      if (cell.index === 1) return { ...cell, state: 'revealed' as const, adjacentMines: 1 };
+      return { ...cell, state: 'revealed' as const };
+    });
+
+    expect(isAvailableChord(cells, 1, config)).toBe(false);
   });
 });
 

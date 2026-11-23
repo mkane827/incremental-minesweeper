@@ -47,14 +47,30 @@
       <ms-board />
     </div>
 
-    @if (upgrades.autoFlagUnlocked()) {
-      <mat-slide-toggle
-        class="auto-flag-toggle"
-        [checked]="upgrades.autoFlagEnabled()"
-        (change)="onAutoFlagToggle($event)"
-      >
-        Auto-flag (🚩)
-      </mat-slide-toggle>
+    @if (upgrades.autoFlagUnlocked() || upgrades.chordHighlightUnlocked()) {
+      <div class="board-toggles">
+        @if (upgrades.autoFlagUnlocked()) {
+          <mat-slide-toggle
+            class="board-toggle"
+            [checked]="upgrades.autoFlagEnabled()"
+            (change)="onAutoFlagToggle($event)"
+          >
+            <span class="auto-flag-label">
+              Auto-flag (<mat-icon class="auto-flag-icon" aria-hidden="true">flag</mat-icon>)
+            </span>
+          </mat-slide-toggle>
+        }
+
+        @if (upgrades.chordHighlightUnlocked()) {
+          <mat-slide-toggle
+            class="board-toggle"
+            [checked]="upgrades.chordHighlightEnabled()"
+            (change)="onChordHighlightToggle($event)"
+          >
+            Highlight chords
+          </mat-slide-toggle>
+        }
+      </div>
     }
 
     @if (banner(); as info) {

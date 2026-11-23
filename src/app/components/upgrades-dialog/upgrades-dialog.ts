@@ -71,6 +71,10 @@ export class UpgradesDialog {
     this.upgrades.buyAutoRestartSpeed();
   }
 
+  protected buyChordHighlightUnlock(): void {
+    this.upgrades.buyChordHighlightUnlock();
+  }
+
   protected buySnifferUnlock(): void {
     this.upgrades.buySnifferUnlock();
   }
